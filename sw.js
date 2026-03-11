@@ -2,8 +2,19 @@
 // The entire app (React + all code) is bundled into index.html.
 // Only one file needs caching for full offline support.
 
-const CACHE = 'mototrack-v2';
-const PRECACHE = ['./index.html', './manifest.json'];
+const CACHE = 'mototrack-v3';
+const PRECACHE = [
+  './index.html',
+  './manifest.json',
+  './public/icons/android/launchericon-192x192.png',
+  './public/icons/android/launchericon-512x512.png',
+  './public/icons/ios/180.png',
+  './public/icons/ios/167.png',
+  './public/icons/ios/152.png',
+  './public/icons/ios/120.png',
+  './public/icons/ios/32.png',
+  './public/icons/ios/16.png',
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(
