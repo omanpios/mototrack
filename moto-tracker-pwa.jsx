@@ -1,0 +1,3069 @@
+import { useState, useMemo, useCallback } from "react";
+
+// =============================================================================
+// INLINE SVG ICON SYSTEM
+// All icons are Lucide-style (24×24 viewBox, stroke-based, round caps/joins).
+// No external dependencies required.
+// =============================================================================
+
+// SVG path data for every icon used in the app
+const ICON_PATHS = {
+  // Navigation
+  Flag:        "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7",
+  Wrench:      "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z",
+  Settings:    "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  History:     "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5 M12 7v5l4 2",
+  ListChecks:  "M10 6H21 M10 12H21 M10 18H21 M3 6l1 1 2-2 M3 12l1 1 2-2 M3 18l1 1 2-2",
+  // Actions
+  Trash2:      "M3 6h18 M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6 M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2 M10 11v6 M14 11v6",
+  Pencil:      "M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z M15 5l4 4",
+  Plus:        "M12 5v14 M5 12h14",
+  Check:       "M20 6 9 17l-5-5",
+  RotateCcw:   "M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6 2.3L3 8 M3 3v5h5",
+  ArrowLeft:   "M19 12H5 M12 5l-7 7 7 7",
+  ChevronDown: "M6 9l6 6 6-6",
+  ChevronUp:   "M18 15l-6-6-6 6",
+  // Status / alerts
+  AlertTriangle:"M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01",
+  AlertOctagon: "M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2z M12 8v4 M12 16h.01",
+  Info:        "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 16v-4 M12 8h.01",
+  Lock:        "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M7 11V7a5 5 0 0 1 10 0v4",
+  CircleDot:   "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z",
+  // Time / navigation
+  Timer:       "M10 2h4 M12 14l4-4 M4.6 11a8 8 0 1 0 .05-.05",
+  Navigation:  "M3 11l19-9-9 19-2-8-8-2z",
+  Calendar:    "M8 2v4 M16 2v4 M3 10h18 M21 8H3a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1z",
+  NotebookPen: "M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4 M2 6h4 M2 10h4 M2 14h4 M2 18h4 M18.4 2a2 2 0 0 1 2.83 2.83L15 11l-4 1 1-4Z",
+  // Service icons
+  Droplets:    "M12 22a7 7 0 0 0 7-7c0-2-1-3.9-2.7-5.3L12 2l-4.3 7.7C6 11.1 5 13 5 15a7 7 0 0 0 7 7z",
+  Bolt:        "M6 13h4V2l8 9h-4v11L6 13z",
+  Wind:        "M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2 M9.6 4.6A2 2 0 1 1 11 8H2 M12.6 19.4A2 2 0 1 0 14 16H2",
+  Cog:         "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41",
+  Search:      "M21 21l-4.35-4.35 M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z",
+  Layers:      "M2 20h20 M2 16h20 M12 2 2 7l10 5 10-5-10-5z M2 12l10 5 10-5",
+  Link2:       "M9 17H7A5 5 0 0 1 7 7h2 M15 7h2a5 5 0 1 1 0 10h-2 M8 12h8",
+  Thermometer: "M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z",
+  Disc3:       "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M6 12a6 6 0 0 0 6 6 M12 12a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z",
+  Zap:         "M13 2 3 14h9l-1 8 10-12h-9l1-8z",
+  SlidersHorizontal: "M21 4H8 M3 4h1 M3 12h13 M19 12h2 M3 20h5 M11 20h10 M6 2v4 M16 10v4 M8 18v4",
+  // Checklist category icons
+  Bike:        "M5 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M19 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M5 17H3V11l3-5h7l4 5h2a2 2 0 0 1 2 2v4h-2 M11 6v5 M8 11h7",
+  Motorbike:   "M5 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M5 16l2-5h6l3 4 M14 11l-3-6H9 M16 8h2a2 2 0 0 1 2 2v3h-5 M14 5h3",
+  ShirtIcon:   "M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z",
+  Package:     "M16.5 9.4l-9-5.19 M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12",
+  Camera:      "M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  MapPin:      "M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  Coffee:      "M18 8h1a4 4 0 0 1 0 8h-1 M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z M6 1v3 M10 1v3 M14 1v3",
+  Tent:        "M3.5 21 14 3 M20.5 21 10 3 M15.5 21l-1.9-3 M8.5 21l1.9-3 M2 21h20",
+  Fuel:        "M3 22V10l7-8v20 M10 10h7a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2 M19 17v2a2 2 0 0 1-2 2 M3 10h7",
+  Map:         "M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z M8 2v16 M16 6v16",
+  Lightbulb:   "M9 18h6 M10 22h4 M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14",
+  Hammer:      "M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08 M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1 1 2.48 1.02 3.5 1.02 1.68 0 3.02-1.34 3.02-3s-1.34-3.04-3.52-3.06z",
+  Shield:      "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  HardHat:     "M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z M10 10V5a2 2 0 0 1 4 0v5 M4 15v-3a8 8 0 0 1 16 0v3",
+  Backpack:    "M4 20V10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2 M8 21v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5 M8 10h8 M8 18h8",
+};
+
+// Core SVG icon renderer — no external deps
+function Ic({ icon, size = 16, color, style, className }) {
+  const d = ICON_PATHS[icon];
+  if (!d) return null;
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24"
+      fill="none" stroke={color || "currentColor"}
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+      style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0, ...style }}
+      className={className}
+    >
+      {d.split(" M").map((seg, i) => (
+        <path key={i} d={i === 0 ? seg : "M" + seg} />
+      ))}
+    </svg>
+  );
+}
+
+// ─── Service task icon resolver ────────────────────────────────────────────────
+const SERVICE_ICON_MAP = {
+  "🛢️": "Droplets",
+  "🔩": "Bolt",
+  "💨": "Wind",
+  "⚙️": "Cog",
+  "🔬": "Search",
+  "🏗️": "Layers",
+  "⛓️": "Link2",
+  "🌡️": "Thermometer",
+  "🛑": "Disc3",
+  "⚡": "Zap",
+  "🔧": "Wrench",
+};
+
+// ─── Checklist category icon resolver ─────────────────────────────────────────
+const CL_ICON_MAP = {
+  "🏍": "Bike",    "🛵": "Motorbike",    "🔧": "Wrench",  "🪛": "Wrench",
+  "🔩": "Bolt",    "⛓":  "Link2",   "🎽": "ShirtIcon","🥾": "Backpack",
+  "🧤": "Shield",  "🪖": "HardHat", "📷": "Camera",  "🎥": "Camera",
+  "📍": "MapPin",  "⛺": "Tent",     "☕": "Coffee",  "🛠": "Hammer",
+  "🧰": "Package", "⛽": "Fuel",    "🗺": "Map",      "💡": "Lightbulb",
+};
+
+// Convenience component: renders a service icon by emoji key with fallback
+function ServiceIcon({ icon, size = 18, style }) {
+  return <Ic icon={SERVICE_ICON_MAP[icon] || "Wrench"} size={size} style={style} />;
+}
+
+// Convenience component: renders a checklist category icon by emoji key
+function CatIcon({ icon, size = 16, style }) {
+  return <Ic icon={CL_ICON_MAP[icon] || "Wrench"} size={size} style={style} />;
+}
+
+// =============================================================================
+// MULTI-UNIT TRACKING SYSTEM
+// =============================================================================
+//
+// UNIT ARCHITECTURE (per planning document):
+//
+//   TrackingUnit = "hours" | "km" | "mi"
+//
+//   - Stored ONCE on the Bike entity. Never duplicated into child records.
+//   - Immutable after bike creation. Absent from edit forms entirely.
+//   - All session readings, service intervals, and completedAt values are
+//     plain numbers whose meaning is derived from the parent bike's unit.
+//   - The Service Engine receives `trackingUnit` as an explicit parameter.
+//     No silent fallbacks. If unit is missing, calculations throw visibly.
+//
+// FIELD RENAMES (from single-unit era):
+//   initialHours      → initialReading   (unit-agnostic)
+//   startHours        → startReading     (unit-agnostic)
+//   durationHours     → durationReading  (unit-agnostic)
+//   deriveEngineHours → deriveTotalReading
+//
+// MIGRATION STRATEGY:
+//   Existing bikes default to "hours" (historically accurate — app was
+//   hour-based from day one). A `unitConfirmed` flag gates session logging
+//   until the user explicitly confirms. Unconfirmed bikes show a banner.
+//
+// DUE-SOON THRESHOLDS (unit-aware, per planning doc §6):
+//   hours → 2h remaining
+//   km    → 200 km remaining
+//   mi    → 120 mi remaining
+//
+// =============================================================================
+
+// ─── Unit System ──────────────────────────────────────────────────────────────
+
+const TRACKING_UNITS = {
+  hours: {
+    label: "Engine Hours",
+    short: "h",
+    icon: "⏱",
+    description: "Track by engine hours. Standard for dirt bikes and off-road machines.",
+    inputStep: 0.1,
+    sessionStartLabel: "Start Hours",
+    sessionDurationLabel: "Duration",
+    sessionFinalLabel: "Final Reading",
+    odometerLabel: "Engine Hours",
+    dueSoonThreshold: 2,
+    intervalPlaceholderNormal: "e.g. 15",
+    intervalPlaceholderAggressive: "e.g. 10",
+    sanityMax: 24,       // single session > 24h triggers warning
+    sanityIntervalMin: 1,
+  },
+  km: {
+    label: "Kilometers",
+    short: "km",
+    icon: "📍",
+    description: "Track by distance in km. Standard for street and adventure bikes.",
+    inputStep: 1,
+    sessionStartLabel: "Start Odometer",
+    sessionDurationLabel: "Distance",
+    sessionFinalLabel: "Final Odometer",
+    odometerLabel: "Odometer",
+    dueSoonThreshold: 200,
+    intervalPlaceholderNormal: "e.g. 3000",
+    intervalPlaceholderAggressive: "e.g. 2000",
+    sanityMax: 2000,
+    sanityIntervalMin: 50,
+  },
+  mi: {
+    label: "Miles",
+    short: "mi",
+    icon: "📍",
+    description: "Track by distance in miles. Standard for street and adventure bikes.",
+    inputStep: 0.1,
+    sessionStartLabel: "Start Odometer",
+    sessionDurationLabel: "Distance",
+    sessionFinalLabel: "Final Odometer",
+    odometerLabel: "Odometer",
+    dueSoonThreshold: 120,
+    intervalPlaceholderNormal: "e.g. 2000",
+    intervalPlaceholderAggressive: "e.g. 1500",
+    sanityMax: 1500,
+    sanityIntervalMin: 50,
+  },
+};
+
+// Format a reading value with its unit suffix
+const fmt = (val, unit) => {
+  const u = TRACKING_UNITS[unit];
+  if (!u) return String(val);
+  if (unit === "hours") return `${val}${u.short}`;
+  return `${Number(val).toLocaleString()} ${u.short}`;
+};
+
+// Format a compact reading for tight spaces
+const fmtShort = (val, unit) => {
+  if (unit === "hours") return `${val}h`;
+  if (unit === "km")    return `${Number(val).toLocaleString()}km`;
+  if (unit === "mi")    return `${Number(val).toLocaleString()}mi`;
+  return String(val);
+};
+
+// ─── Utilities ─────────────────────────────────────────────────────────────────
+const uid  = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const r1   = (n) => Math.round(n * 10) / 10;
+const r0   = (n) => Math.round(n);
+
+const roundForUnit = (val, unit) => unit === "hours" ? r1(val) : r0(val);
+
+const CATEGORIES    = ["Engine","Air","Drivetrain","Cooling","Brakes","Electrical","Suspension","Other"];
+const CAT_ICONS     = { Engine:"⚙️", Air:"💨", Drivetrain:"⛓️", Cooling:"🌡️", Brakes:"🛑", Electrical:"⚡", Suspension:"🔧", Other:"🔩" };
+const DEFAULT_TITLE = "Riding Session";
+const POPULAR_MAKES = ["Honda","Yamaha","KTM","Husqvarna","Kawasaki","Suzuki","Beta","Sherco","GASGAS","TM Racing","Other"];
+const BIKE_COLORS   = ["#cc2200","#1d4ed8","#16a34a","#d97706","#7c3aed","#0891b2","#db2777","#374151"];
+
+const sanitizeTitle = (v) => (v && v.trim().length > 0 ? v.trim().slice(0, 60) : DEFAULT_TITLE);
+
+// PRE_RIDE_CHECKLIST constant removed — checklist is now per-bike and stored
+// in state.checklistCategories / state.checklistItems. See data model below.
+
+// Emoji options for category icons — curated for motorcycle/adventure use
+const CAT_EMOJI_OPTIONS = ["🏍","🛵","🔧","🪛","🔩","⛓","🎽","🥾","🧤","🪖","📷","🎥","📍","⛺","☕","🛠","🧰","⛽","🗺","💡"];
+
+// =============================================================================
+// CHECKLIST DATA MODEL
+// =============================================================================
+//
+//   ChecklistCategory { id, bikeId, name, icon, order, createdAt }
+//   ChecklistItem     { id, bikeId, categoryId, name, order, enabled, createdAt }
+//
+// DESIGN DECISIONS:
+//
+//   1. Per-bike — categories and items carry bikeId. Switching bikes shows that
+//      bike's checklist. No global checklist.
+//
+//   2. bikeId denormalized onto ChecklistItem — matches the existing pattern
+//      for serviceDefs/serviceRecords. Enables fast single-pass filtering with
+//      no secondary lookups.
+//
+//   3. Check state (preRideChecks) is { [bikeId]: { [itemId]: boolean } }.
+//      Keys are stable IDs, not names. Renaming an item never orphans state.
+//
+//   4. Cascade delete — deleting a category deletes its items and clears their
+//      IDs from preRideChecks in the same setState call.
+//      Deleting a bike cascades to categories and items (added to handleDeleteBike).
+//
+//   5. `enabled` flag — an item can exist but be excluded from the pre-ride
+//      flow. Progress counts only enabled items.
+//
+//   6. MIGRATION — existing bikes have no checklist collections. On first render,
+//      App generates the default template for each bike. Old preRideChecks shape
+//      ({ [name]: bool }) is transient UI state so nothing of value is lost.
+//
+// =============================================================================
+
+function defaultChecklistTemplate(bikeId) {
+  // Off-road / dirt bike default — maps the old PRE_RIDE_CHECKLIST exactly
+  const catId = "clcat_" + uid();
+  const mk = (name, order) => ({
+    id: "clitem_" + uid(), bikeId, categoryId: catId, name, order, enabled: true,
+    createdAt: new Date().toISOString(),
+  });
+  return {
+    categories: [
+      { id: catId, bikeId, name: "Bike", icon: "🏍", order: 0, createdAt: new Date().toISOString() },
+    ],
+    items: [
+      mk("Chain tension & lubrication", 0),
+      mk("Tire pressure (F & R)",       1),
+      mk("Front & rear brake feel",     2),
+      mk("Coolant level",               3),
+      mk("Engine oil level",            4),
+      mk("Throttle free play",          5),
+      mk("Critical bolt check",         6),
+      mk("Air filter condition",        7),
+    ],
+  };
+}
+
+function vstromChecklistTemplate(bikeId) {
+  // Street / adventure bike default
+  const bikeCatId  = "clcat_" + uid();
+  const gearCatId  = "clcat_" + uid();
+  const toolsCatId = "clcat_" + uid();
+  const mk = (catId, name, order) => ({
+    id: "clitem_" + uid(), bikeId, categoryId: catId, name, order, enabled: true,
+    createdAt: new Date().toISOString(),
+  });
+  return {
+    categories: [
+      { id: bikeCatId,  bikeId, name: "Bike",  icon: "🏍", order: 0, createdAt: new Date().toISOString() },
+      { id: gearCatId,  bikeId, name: "Gear",  icon: "🎽", order: 1, createdAt: new Date().toISOString() },
+      { id: toolsCatId, bikeId, name: "Tools", icon: "🔧", order: 2, createdAt: new Date().toISOString() },
+    ],
+    items: [
+      mk(bikeCatId,  "Tire pressure (F & R)",   0),
+      mk(bikeCatId,  "Chain tension & lube",     1),
+      mk(bikeCatId,  "Brake feel",               2),
+      mk(bikeCatId,  "Engine oil level",         3),
+      mk(bikeCatId,  "Lights working",           4),
+      mk(gearCatId,  "Helmet",                   0),
+      mk(gearCatId,  "Gloves",                   1),
+      mk(gearCatId,  "Jacket / armor",           2),
+      mk(toolsCatId, "Tire repair kit",          0),
+      mk(toolsCatId, "Multi-tool",               1),
+      mk(toolsCatId, "Phone mount",              2),
+    ],
+  };
+}
+
+// =============================================================================
+// SERVICE TEMPLATES
+// Each template uses the bike's unit semantics — the numbers mean different
+// things per unit. Templates are selected at bike-creation time.
+// =============================================================================
+
+function crf300fTemplate(bikeId) {
+  // Hours-based intervals for Honda CRF300F
+  const mk = (defKey, name, cat, icon, iN, iA, first, depKey) => ({
+    id: uid(), bikeId, defKey, name, category: cat, icon,
+    intervalNormal: iN, intervalAggressive: iA,
+    firstServiceAt: first ?? null,
+    dependsOnKey: depKey ?? null, dependsOnCount: depKey ? 2 : null,
+    notes: "", isPreset: true,
+  });
+  return [
+    mk("oil_change",     "Engine Oil",             "Engine",    "🛢️", 15,  10,  10,  null),
+    mk("oil_filter",     "Oil Filter",             "Engine",    "🔩", null,null,null,"oil_change"),
+    mk("air_filter",     "Air Filter",             "Air",       "💨", 12,  8,   null,null),
+    mk("valve_clearance","Valve Clearance",         "Engine",    "⚙️", 30,  20,  null,null),
+    mk("top_end",        "Top-End Inspection",      "Engine",    "🔬", 50,  30,  null,null),
+    mk("bottom_end",     "Bottom-End Inspection",   "Engine",    "🏗️", 100, 100, null,null),
+    mk("chain",          "Chain Tension & Lube",    "Drivetrain","⛓️", 5,   3,   null,null),
+    mk("coolant",        "Coolant Check",           "Cooling",   "🌡️", 20,  15,  null,null),
+    mk("brakes",         "Brake Inspection",        "Brakes",    "🛑", 10,  8,   null,null),
+    mk("spark_plug",     "Spark Plug",              "Engine",    "⚡", 40,  25,  null,null),
+  ];
+}
+
+function vstrom650Template(bikeId) {
+  // km-based intervals for Suzuki V-Strom 650 (typical street/adventure schedule)
+  const mk = (defKey, name, cat, icon, iN, iA) => ({
+    id: uid(), bikeId, defKey, name, category: cat, icon,
+    intervalNormal: iN, intervalAggressive: iA,
+    firstServiceAt: null, dependsOnKey: null, dependsOnCount: null,
+    notes: "", isPreset: true,
+  });
+  return [
+    mk("oil_change",  "Engine Oil",           "Engine",    "🛢️", 6000,  4000),
+    mk("air_filter",  "Air Filter",           "Air",       "💨", 24000, 16000),
+    mk("spark_plug",  "Spark Plug",           "Engine",    "⚡", 24000, 16000),
+    mk("coolant",     "Coolant Flush",        "Cooling",   "🌡️", 24000, 16000),
+    mk("brakes",      "Brake Inspection",     "Brakes",    "🛑", 6000,  4000),
+    mk("chain",       "Chain Tension & Lube", "Drivetrain","⛓️", 1000,  600),
+    mk("tires",       "Tire Inspection",      "Suspension","🔧", 6000,  4000),
+  ];
+}
+
+function genericHoursTemplate(bikeId) {
+  const mk = (defKey, name, cat, icon, iN, iA) => ({
+    id: uid(), bikeId, defKey, name, category: cat, icon,
+    intervalNormal: iN, intervalAggressive: iA,
+    firstServiceAt: null, dependsOnKey: null, dependsOnCount: null,
+    notes: "", isPreset: true,
+  });
+  return [
+    mk("oil_change", "Engine Oil",           "Engine",    "🛢️", 15, 10),
+    mk("air_filter", "Air Filter",           "Air",       "💨", 12, 8),
+    mk("chain",      "Chain Tension & Lube", "Drivetrain","⛓️", 5,  3),
+    mk("brakes",     "Brake Inspection",     "Brakes",    "🛑", 10, 8),
+    mk("spark_plug", "Spark Plug",           "Engine",    "⚡", 40, 25),
+  ];
+}
+
+function genericKmTemplate(bikeId) {
+  const mk = (defKey, name, cat, icon, iN, iA) => ({
+    id: uid(), bikeId, defKey, name, category: cat, icon,
+    intervalNormal: iN, intervalAggressive: iA,
+    firstServiceAt: null, dependsOnKey: null, dependsOnCount: null,
+    notes: "", isPreset: true,
+  });
+  return [
+    mk("oil_change", "Engine Oil",           "Engine",    "🛢️", 4000, 3000),
+    mk("air_filter", "Air Filter",           "Air",       "💨", 12000,8000),
+    mk("chain",      "Chain Tension & Lube", "Drivetrain","⛓️", 500,  300),
+    mk("brakes",     "Brake Inspection",     "Brakes",    "🛑", 4000, 3000),
+    mk("spark_plug", "Spark Plug",           "Engine",    "⚡", 16000,12000),
+  ];
+}
+
+function genericMiTemplate(bikeId) {
+  const mk = (defKey, name, cat, icon, iN, iA) => ({
+    id: uid(), bikeId, defKey, name, category: cat, icon,
+    intervalNormal: iN, intervalAggressive: iA,
+    firstServiceAt: null, dependsOnKey: null, dependsOnCount: null,
+    notes: "", isPreset: true,
+  });
+  return [
+    mk("oil_change", "Engine Oil",           "Engine",    "🛢️", 2500, 2000),
+    mk("air_filter", "Air Filter",           "Air",       "💨", 7500, 5000),
+    mk("chain",      "Chain Tension & Lube", "Drivetrain","⛓️", 300,  200),
+    mk("brakes",     "Brake Inspection",     "Brakes",    "🛑", 2500, 2000),
+    mk("spark_plug", "Spark Plug",           "Engine",    "⚡", 10000,7500),
+  ];
+}
+
+// Template resolver — called at bike creation time
+function resolveTemplate(preloadKey, bikeId) {
+  switch (preloadKey) {
+    case "crf300f":    return crf300fTemplate(bikeId);
+    case "vstrom650":  return vstrom650Template(bikeId);
+    case "generic_hours": return genericHoursTemplate(bikeId);
+    case "generic_km":    return genericKmTemplate(bikeId);
+    case "generic_mi":    return genericMiTemplate(bikeId);
+    default:           return [];
+  }
+}
+
+// ─── Seed data ────────────────────────────────────────────────────────────────
+const BIKE1_ID = "bike_crf300f";
+const BIKE2_ID = "bike_vstrom";
+
+// MIGRATION: both existing bikes get unitConfirmed=true (they were used before
+// the unit system, defaulting hours is historically accurate for CRF300F.
+// V-Strom is added as a new demo bike with km explicitly set.)
+
+const INITIAL_BIKES = [
+  {
+    id: BIKE1_ID, name: "CRF300F", make: "Honda", model: "CRF300F", year: 2024,
+    trackingUnit: "hours",   // immutable
+    unitConfirmed: true,     // migration flag — already confirmed
+    initialReading: 0, ridingMode: "normal", color: "#cc2200",
+    createdAt: "2025-01-01",
+  },
+  {
+    id: BIKE2_ID, name: "V-Strom 650", make: "Suzuki", model: "V-Strom 650", year: 2023,
+    trackingUnit: "km",      // immutable
+    unitConfirmed: true,
+    initialReading: 4200, ridingMode: "normal", color: "#1d4ed8",
+    createdAt: "2025-02-01",
+  },
+];
+
+const INITIAL_SESSIONS_CRF = [
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-01-10", title:"Break-In Ride",       startReading:0.0,  durationReading:8.0,  notes:"Easy pace, no pinning it. Felt tight — expected.", createdAt:"2025-01-10T18:00:00" },
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-01-18", title:"First Trail Day",     startReading:8.0,  durationReading:5.0,  notes:"Soft sand in the riverbed section.", createdAt:"2025-01-18T15:30:00" },
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-01-25", title:"Track Practice",      startReading:13.0, durationReading:7.0,  notes:"Corner entry work. Suspension feels stiff.", createdAt:"2025-01-25T17:00:00" },
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-02-05", title:"Enduro Race – Rd.1",  startReading:20.0, durationReading:8.0,  notes:"P4 in class. Bike started first kick every time.", createdAt:"2025-02-05T19:00:00" },
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-02-15", title:"Trail Day",           startReading:28.0, durationReading:5.5,  notes:"Rode with Marco and Luis. Dusty.", createdAt:"2025-02-15T16:00:00" },
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-02-22", title:"MX Track",            startReading:33.5, durationReading:6.5,  notes:"", createdAt:"2025-02-22T17:30:00" },
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-03-01", title:"Dunes – Los Médanos", startReading:40.0, durationReading:5.0,  notes:"Sand riding. Coolant looked low after.", createdAt:"2025-03-01T18:00:00" },
+  { id: uid(), bikeId: BIKE1_ID, date:"2025-03-10", title:"Practice Laps",       startReading:45.0, durationReading:2.5,  notes:"", createdAt:"2025-03-10T14:00:00" },
+];
+
+const INITIAL_SESSIONS_VSTROM = [
+  { id: uid(), bikeId: BIKE2_ID, date:"2025-02-10", title:"First Ride",           startReading:0,    durationReading:320,  notes:"Shakedown run. Comfortable ergos.", createdAt:"2025-02-10T16:00:00" },
+  { id: uid(), bikeId: BIKE2_ID, date:"2025-02-20", title:"Mountain Pass",        startReading:320,  durationReading:280,  notes:"Páramo de Sumapaz. Cold up top.", createdAt:"2025-02-20T17:00:00" },
+  { id: uid(), bikeId: BIKE2_ID, date:"2025-03-05", title:"Highway Blast",        startReading:600,  durationReading:210,  notes:"", createdAt:"2025-03-05T15:00:00" },
+];
+
+const INITIAL_DEFS_CRF    = crf300fTemplate(BIKE1_ID);
+const INITIAL_DEFS_VSTROM = vstrom650Template(BIKE2_ID);
+
+function seedRecordsCRF(defs) {
+  const byKey = Object.fromEntries(defs.map((d) => [d.defKey, d]));
+  return [
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["oil_change"]?.id,  completedAt:10.0, date:"2025-01-18", notes:"First oil change",     cost:28.5, parts:"Honda GN4 10W-30 1L" },
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["oil_filter"]?.id,  completedAt:10.0, date:"2025-01-18", notes:"With first oil change", cost:8.0,  parts:"OEM Honda Oil Filter" },
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["chain"]?.id,       completedAt:15.0, date:"2025-01-25", notes:"Adjusted to 25mm",      cost:0,    parts:"" },
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["air_filter"]?.id,  completedAt:20.0, date:"2025-02-05", notes:"Cleaned and re-oiled",  cost:12.0, parts:"No-Toil filter oil" },
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["brakes"]?.id,      completedAt:25.0, date:"2025-02-10", notes:"Inspected OK",          cost:0,    parts:"" },
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["oil_change"]?.id,  completedAt:28.0, date:"2025-02-15", notes:"Routine oil change",    cost:28.5, parts:"Honda GN4 10W-30 1L" },
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["chain"]?.id,       completedAt:33.5, date:"2025-02-22", notes:"Lubed, 22mm slack",     cost:0,    parts:"" },
+    { id:uid(), bikeId:BIKE1_ID, defId:byKey["spark_plug"]?.id,  completedAt:40.0, date:"2025-03-01", notes:"NGK CPR8EA-9 replaced", cost:14.0, parts:"NGK CPR8EA-9" },
+  ].filter((r) => r.defId);
+}
+
+function seedRecordsVStrom(defs) {
+  const byKey = Object.fromEntries(defs.map((d) => [d.defKey, d]));
+  return [
+    { id:uid(), bikeId:BIKE2_ID, defId:byKey["oil_change"]?.id,  completedAt:4500, date:"2025-02-15", notes:"Castrol Power 1 10W-40", cost:45.0, parts:"Castrol Power 1 4L" },
+    { id:uid(), bikeId:BIKE2_ID, defId:byKey["chain"]?.id,       completedAt:4700, date:"2025-02-28", notes:"Tension OK, lubed",      cost:0,    parts:"Motul chain lube" },
+  ].filter((r) => r.defId);
+}
+
+const INITIAL_RECORDS_CRF    = seedRecordsCRF(INITIAL_DEFS_CRF);
+const INITIAL_RECORDS_VSTROM = seedRecordsVStrom(INITIAL_DEFS_VSTROM);
+
+// =============================================================================
+// ODOMETER SNAPSHOTS
+// =============================================================================
+//
+// OdometerSnapshot — the unified odometer history, per the spec.
+//
+//   { id, bikeId, odometer, date, source: "manual" | "ride" }
+//
+// DESIGN DECISIONS:
+//
+//   1. Snapshots are ADDITIVE — they never replace each other. The effective
+//      odometer is always MAX(all snapshots for this bike). This means:
+//      - A manual update at 18,450 km creates one snapshot.
+//      - A later manual update at 18,600 km creates a second snapshot.
+//      - The max is 18,600. The first is still in the audit trail.
+//
+//   2. Ride sessions do NOT auto-create snapshots. The ride session chain
+//      (startReading + durationReading, anchored to initialReading) already
+//      produces a derived odometer value via calcTotalReading(). The service
+//      engine uses effectiveTotalReading = max(rideChainTotal, maxSnapshot).
+//      Duplicating session data into snapshots would create a sync hazard when
+//      sessions are deleted or edited. Instead, we keep ride sessions as the
+//      canonical source for ride-based odometer and snapshots as supplemental.
+//
+//   3. Only km/mi bikes show the odometer update button. Hours bikes use
+//      the session chain exclusively — a manual "hours" entry would be
+//      semantically wrong (engine hours must come from actual runtime).
+//
+//   4. Validation: new snapshot odometer must be >= effectiveTotalReading.
+//      It cannot go backwards. It can equal the current value (no-op).
+//
+//   5. Bike deletion cascades to snapshots.
+//
+//   6. MIGRATION: existing bikes have no snapshots — that is fine.
+//      calcTotalReading() still works from the session chain alone.
+//      Snapshots only take effect when they exceed the session-derived total.
+//
+// =============================================================================
+
+// Seed: V-Strom has one manual snapshot representing a day the user rode
+// but forgot to log (exactly the scenario this feature solves).
+const INITIAL_SNAPSHOTS = [
+  {
+    id: uid(),
+    bikeId: BIKE2_ID,
+    odometer: 5050, // 4200 initialReading + 810 sessions = 5010 from rides,
+                    // but user updated to 5050 after a forgotten commute
+    date: "2025-03-08",
+    source: "manual",
+    createdAt: "2025-03-08T20:15:00",
+  },
+];
+
+const INITIAL_CL_CRF    = defaultChecklistTemplate(BIKE1_ID);
+const INITIAL_CL_VSTROM = vstromChecklistTemplate(BIKE2_ID);
+
+const INITIAL_STATE = {
+  bikes: INITIAL_BIKES,
+  activeBikeId: BIKE1_ID,
+  sessions:        [...INITIAL_SESSIONS_CRF, ...INITIAL_SESSIONS_VSTROM],
+  serviceDefs:     [...INITIAL_DEFS_CRF,     ...INITIAL_DEFS_VSTROM],
+  serviceRecords:  [...INITIAL_RECORDS_CRF,  ...INITIAL_RECORDS_VSTROM],
+  odometerSnapshots: INITIAL_SNAPSHOTS,
+  // ── Checklist collections ──────────────────────────────────────────────────
+  checklistCategories: [...INITIAL_CL_CRF.categories, ...INITIAL_CL_VSTROM.categories],
+  checklistItems:      [...INITIAL_CL_CRF.items,      ...INITIAL_CL_VSTROM.items],
+};
+
+// =============================================================================
+// SERVICE ENGINE — Unit-aware pure functions
+// =============================================================================
+
+const sessionEnd       = (s) => r1(s.startReading + s.durationReading);
+const deriveTotalReading = (sessions, initialReading = 0) => {
+  if (!sessions.length) return initialReading;
+  return r1(initialReading + Math.max(...sessions.map((s) => sessionEnd(s) - (sessions[0].startReading ?? 0))));
+};
+
+// Simpler and more accurate: total reading = initialReading + sum of all session durations
+// (sessions are always resequenced, so we can just use the last session's end reading
+//  plus the initialReading offset)
+const deriveTotalReadingFromSessions = (sessions, initialReading = 0) => {
+  if (!sessions.length) return initialReading;
+  const sorted = [...sessions].sort((a, b) => a.startReading - b.startReading);
+  const sessionTotal = sorted.reduce((sum, s) => sum + s.durationReading, 0);
+  return roundForUnit(initialReading + sessionTotal, "hours"); // keep as-is, caller formats
+};
+
+// Resequencing: preserves duration of each session, re-anchors start readings
+// Starts from 0 (initialReading is added at display time, not in session data)
+function resequence(sessions) {
+  if (!sessions.length) return [];
+  const sorted = [...sessions].sort((a, b) => a.startReading - b.startReading);
+  const out = [{ ...sorted[0], startReading: 0 }];
+  for (let i = 1; i < sorted.length; i++) {
+    out.push({ ...sorted[i], startReading: r1(sessionEnd(out[i - 1])) });
+  }
+  return out;
+}
+
+// True total reading = initialReading + end of last session in resequenced chain
+function calcTotalReading(sessions, initialReading, unit) {
+  if (!sessions.length) return initialReading ?? 0;
+  const sorted = [...sessions].sort((a, b) => a.startReading - b.startReading);
+  const sessionEnd_ = sorted.reduce((acc, s) => acc + s.durationReading, 0);
+  return roundForUnit((initialReading ?? 0) + sessionEnd_, unit);
+}
+
+function getLastRecord(records, defId) {
+  return [...records]
+    .filter((r) => r.defId === defId)
+    .sort((a, b) => b.completedAt - a.completedAt)[0];
+}
+
+function enrichDefs(defs) {
+  return defs.map((d) => {
+    if (!d.dependsOnKey) return d;
+    const parent = defs.find((p) => p.defKey === d.dependsOnKey);
+    return {
+      ...d,
+      _parentIntervalNormal:     parent?.intervalNormal     ?? 15,
+      _parentIntervalAggressive: parent?.intervalAggressive ?? 10,
+      _parentDefId:              parent?.id                 ?? null,
+    };
+  });
+}
+
+// Core calculation — receives trackingUnit explicitly (no inference)
+function getNextDue(def, records, totalReading, ridingMode, trackingUnit) {
+  if (!trackingUnit) throw new Error(`getNextDue: trackingUnit is required for def "${def.name}"`);
+
+  // Dependency-based (e.g. Oil Filter: every N oil changes)
+  if (def.dependsOnKey && def._parentDefId) {
+    const parentRecs = [...records]
+      .filter((r) => r.defId === def._parentDefId)
+      .sort((a, b) => b.completedAt - a.completedAt);
+    const selfRec = getLastRecord(records, def.id);
+    const selfAt  = selfRec?.completedAt ?? 0;
+    const since   = parentRecs.filter((r) => r.completedAt > selfAt).length;
+    const until   = def.dependsOnCount - (since % def.dependsOnCount);
+    const pInt    = ridingMode === "aggressive"
+      ? def._parentIntervalAggressive
+      : def._parentIntervalNormal;
+    const base    = parentRecs[0]?.completedAt ?? pInt;
+    const nextDue = roundForUnit(base + pInt * until, trackingUnit);
+    return { lastAt: selfAt || null, nextDue, remaining: roundForUnit(nextDue - totalReading, trackingUnit) };
+  }
+
+  // Standard interval
+  const interval = ridingMode === "aggressive" ? def.intervalAggressive : def.intervalNormal;
+  const last     = getLastRecord(records, def.id);
+  const nextDue  = !last
+    ? roundForUnit(def.firstServiceAt ?? interval, trackingUnit)
+    : roundForUnit(last.completedAt + interval, trackingUnit);
+  return {
+    lastAt: last?.completedAt ?? null,
+    nextDue,
+    remaining: roundForUnit(nextDue - totalReading, trackingUnit),
+  };
+}
+
+// Unit-aware status — uses correct threshold per unit
+function getStatus(remaining, trackingUnit) {
+  const threshold = TRACKING_UNITS[trackingUnit]?.dueSoonThreshold ?? 2;
+  if (remaining <= 0)         return "overdue";
+  if (remaining <= threshold) return "due-soon";
+  return "ok";
+}
+
+// =============================================================================
+// ODOMETER SNAPSHOT HELPERS — pure, no side effects
+// =============================================================================
+
+// Returns the highest manual snapshot odometer for a bike (or null if none).
+// This is the "supplement" reading — it only affects calculations when it
+// exceeds the ride-chain total.
+function getMaxSnapshot(snapshots, bikeId) {
+  const bikeSnaps = snapshots.filter((s) => s.bikeId === bikeId);
+  if (!bikeSnaps.length) return null;
+  return Math.max(...bikeSnaps.map((s) => s.odometer));
+}
+
+// The effective total reading is the max of:
+//   (a) the ride-chain total  (initialReading + sum of all session durations)
+//   (b) the highest odometer snapshot
+// This means manual updates never lose to a stale ride chain, and ride
+// logging still works exactly as before when no snapshots exist.
+function calcEffectiveTotalReading(sessions, initialReading, unit, snapshots, bikeId) {
+  const rideTotal     = calcTotalReading(sessions, initialReading, unit);
+  const snapshotMax   = getMaxSnapshot(snapshots, bikeId);
+  if (snapshotMax === null) return rideTotal;
+  return roundForUnit(Math.max(rideTotal, snapshotMax), unit);
+}
+
+// Returns the most recent snapshot object (for "last updated X ago" display).
+function getLatestSnapshot(snapshots, bikeId) {
+  const bikeSnaps = snapshots.filter((s) => s.bikeId === bikeId);
+  if (!bikeSnaps.length) return null;
+  return bikeSnaps.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+}
+
+// Human-readable relative time (e.g. "3 days ago", "just now")
+function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins < 2)   return "just now";
+  if (mins < 60)  return `${mins} min ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return "yesterday";
+  if (days < 30)  return `${days} days ago`;
+  return `${Math.floor(days / 30)} mo ago`;
+}
+
+// =============================================================================
+// STYLES
+// =============================================================================
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* Surfaces — spread ~8–9 lightness units per step for visible elevation */
+  --bg:#080809;--s1:#111116;--s2:#191920;--s3:#222229;--s4:#2a2a32;
+  /* Borders — visible separation while maintaining dark-theme character */
+  --bd:#2c2c3a;--bd2:#383849;
+  /* Accent */
+  --red:#c82000;--red2:#ff3300;--red3:#7a1200;
+  --amb:#d97706;--grn:#16a34a;--grn-d:#052e16;
+  --blu:#1d4ed8;--blu-d:#1e3a5f;
+  /* Text — txt3 raised from #4a4a62 → #7b7b96 (AA 4.88:1 on bg, 4.66:1 on s1) */
+  --txt:#eeeef5;--txt2:#8888a0;--txt3:#7b7b96;
+  --fd:'Rajdhani',sans-serif;--fm:'Share Tech Mono',monospace;--fb:'Barlow',sans-serif;
+  --rad:5px;
+}
+html{width:100%;overflow-x:hidden}body{width:100%;background:var(--bg);color:var(--txt);font-family:var(--fb);min-height:100vh;overscroll-behavior:none;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.app{width:100%;max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;box-sizing:border-box}
+
+/* HEADER */
+.hdr{background:var(--s1);border-bottom:1px solid var(--bd);padding:10px 14px 9px;position:sticky;top:0;z-index:100}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.bike-switcher{display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 8px 5px 6px;border-radius:var(--rad);border:1px solid var(--bd);background:var(--s2);min-width:0;flex:1;max-width:220px;-webkit-tap-highlight-color:transparent}
+.bike-switcher:active{background:var(--s3)}
+.bike-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.bike-name-hdr{font-family:var(--fd);font-size:16px;font-weight:700;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.bike-caret{color:var(--txt3);font-size:10px;flex-shrink:0}
+.hdr-right{display:flex;align-items:center;gap:6px}
+.mode-btn{font-family:var(--fm);font-size:10px;padding:4px 9px;border-radius:3px;text-transform:uppercase;letter-spacing:1px;cursor:pointer;border:1px solid;white-space:nowrap}
+.mode-btn.normal{color:var(--grn);border-color:var(--grn);background:rgba(22,163,74,.08)}
+.mode-btn.aggressive{color:var(--red2);border-color:var(--red);background:rgba(200,32,0,.1);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,51,0,.3)}50%{box-shadow:0 0 0 5px rgba(255,51,0,0)}}
+.hdr-sub{font-family:var(--fm);font-size:10px;color:var(--txt3);letter-spacing:.5px;margin-top:3px;display:flex;align-items:center;gap:8px}
+.unit-badge{font-family:var(--fm);font-size:10px;padding:2px 6px;border-radius:2px;background:var(--s3);border:1px solid var(--bd2);color:var(--txt3);letter-spacing:.5px}
+
+/* UNIT CONFIRM BANNER */
+.confirm-banner{margin:10px 12px 0;padding:12px 14px;border-radius:var(--rad);background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.4);display:flex;align-items:flex-start;gap:10px}
+.confirm-banner-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.confirm-banner-body{flex:1}
+.confirm-banner-title{font-family:var(--fd);font-size:15px;font-weight:700;color:var(--amb);margin-bottom:3px}
+.confirm-banner-text{font-size:12px;color:var(--txt2);line-height:1.5}
+.confirm-banner-actions{display:flex;gap:6px;margin-top:10px}
+
+/* SCROLL AREA */
+.scroll{flex:1;overflow-y:auto;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+
+/* HOUR CARD */
+.hcard{margin:12px 12px 0;background:linear-gradient(140deg,#0c0c0f,#13131a);border:1px solid var(--bd);border-top:3px solid var(--red);border-radius:6px;padding:16px;position:relative;overflow:hidden}
+.hcard::before{content:'';position:absolute;top:0;right:0;width:160px;height:160px;background:radial-gradient(circle at 80% 20%,rgba(200,32,0,.07),transparent 65%);pointer-events:none}
+.hcard-label{font-family:var(--fm);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+.hcard-val{font-family:var(--fd);font-size:50px;font-weight:700;line-height:1;letter-spacing:-1px;word-break:break-all}
+.hcard-val span{font-size:22px;color:var(--txt2);font-weight:500}
+.hcard-meta{font-family:var(--fm);font-size:11px;color:var(--txt3);margin-top:5px}
+.hcard-actions{display:flex;gap:8px;margin-top:14px}.hcard-actions .btn{flex:1;text-align:center}
+
+/* BUTTONS */
+.btn{font-family:var(--fd);font-weight:600;font-size:14px;letter-spacing:.5px;padding:9px 16px;border-radius:4px;border:none;cursor:pointer;text-transform:uppercase;white-space:nowrap;transition:opacity .15s}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-p{background:var(--red);color:#fff}
+.btn-p:not(:disabled):active{opacity:.8}
+.btn-s{background:var(--s3);color:var(--txt2);border:1px solid var(--bd)}
+.btn-s:active{opacity:.7}
+.btn-g{background:transparent;color:var(--txt2);border:1px solid var(--bd)}
+.btn-d{background:rgba(200,32,0,.12);color:#ff6644;border:1px solid var(--red3)}
+.btn-b{background:rgba(29,78,216,.18);color:#60a5fa;border:1px solid var(--blu-d)}
+.btn-amb{background:rgba(217,119,6,.15);color:var(--amb);border:1px solid rgba(217,119,6,.4)}
+.btn-grn{background:rgba(22,163,74,.15);color:#4ade80;border:1px solid rgba(22,163,74,.3)}
+
+/* ALERTS */
+.alert{margin:8px 12px 0;padding:10px 12px;border-radius:4px;font-family:var(--fd);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.alert-ov{background:rgba(200,32,0,.12);border:1px solid var(--red3);color:#ff6644}
+.alert-ds{background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.35);color:var(--amb)}
+
+/* SECTIONS */
+.sec{padding:12px}
+.sec-title{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--bd)}
+
+/* TASK CARDS */
+.tcard{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);margin-bottom:6px;overflow:hidden}
+.tcard.overdue{border-left:3px solid var(--red)}
+.tcard.due-soon{border-left:3px solid var(--amb)}
+.thead{display:flex;align-items:center;padding:11px 12px;gap:10px;cursor:pointer}
+.ticon{font-size:18px;min-width:24px;text-align:center}
+.tinfo{flex:1;min-width:0}
+.tname{font-family:var(--fd);font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tmeta{font-family:var(--fm);font-size:11px;font-weight:500;color:var(--txt3);margin-top:1px}
+.tstatus{text-align:right;min-width:82px;flex-shrink:0}
+.sbadge{font-family:var(--fm);font-size:10px;padding:3px 6px;border-radius:2px;text-transform:uppercase;letter-spacing:.5px;display:block;text-align:center}
+.sbadge.overdue{background:rgba(200,32,0,.2);color:#ff5533}
+.sbadge.due-soon{background:rgba(217,119,6,.15);color:var(--amb)}
+.sbadge.ok{background:var(--grn-d);color:#4ade80}
+.rem-val{font-family:var(--fd);font-size:12px;font-weight:600;text-align:center;margin-top:2px;white-space:nowrap}
+.rem-val.overdue{color:var(--red2)}.rem-val.due-soon{color:var(--amb)}.rem-val.ok{color:var(--txt2)}
+.texpand{border-top:1px solid var(--bd);padding:12px;background:var(--s2)}
+.trow{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;color:var(--txt2)}
+.trow strong{font-family:var(--fm);color:var(--txt);font-size:12px}
+.tnotes{font-size:12px;color:var(--txt3);background:var(--s3);padding:8px 10px;border-radius:3px;border-left:2px solid var(--bd2);margin-bottom:10px;font-style:italic}
+.pbar{height:3px;background:var(--bd);border-radius:2px;margin-top:7px;overflow:hidden}
+.pfill{height:100%;border-radius:2px;transition:width .4s ease}
+.pfill.ok{background:var(--grn)}.pfill.due-soon{background:var(--amb)}.pfill.overdue{background:var(--red2)}
+
+/* NAV */
+.nav{position:sticky;bottom:0;background:var(--s1);border-top:1px solid var(--bd);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
+.nitem{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 4px 13px;cursor:pointer;border:none;background:transparent;position:relative;-webkit-tap-highlight-color:transparent;min-height:48px}
+.nitem::after{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--red);transform:scaleX(0);transition:transform .2s;border-radius:0 0 2px 2px}
+.nitem.active::after{transform:scaleX(1)}
+.nicon{font-size:19px;margin-bottom:2px;color:var(--txt3)}
+.nlabel{font-family:var(--fd);font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--txt3);font-weight:700}
+.nitem.active .nlabel{color:var(--red2)}.nitem.active .nicon{color:var(--red2)}
+
+/* MODALS */
+.moverlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:flex-end;backdrop-filter:blur(4px)}
+.modal{background:var(--s1);border:1px solid var(--bd);border-top:2px solid var(--red);border-radius:8px 8px 0 0;width:100%;max-width:480px;margin:0 auto;padding:20px;max-height:92vh;overflow-y:auto}
+.modal.blue{border-top-color:#3b82f6}
+.modal.green{border-top-color:var(--grn)}
+.modal.amber{border-top-color:var(--amb)}
+.mtitle{font-family:var(--fd);font-size:21px;font-weight:700;letter-spacing:.5px;margin-bottom:4px}
+.msub{font-size:12px;color:var(--txt3);margin-bottom:18px;font-family:var(--fm)}
+.field{margin-bottom:13px}
+.field label{display:block;font-family:var(--fd);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px}
+.field input,.field textarea,.field select{width:100%;background:var(--s2);border:1px solid #4a4a60;border-radius:4px;color:var(--txt);font-family:var(--fm);font-size:15px;padding:10px 12px;outline:none;-webkit-appearance:none}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--red)}
+.field select option{background:var(--s2)}
+.field textarea{resize:none}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
+.field-row .field{margin-bottom:0}
+.field-hint{font-family:var(--fm);font-size:10px;color:var(--txt3);margin-top:4px}
+.mactions{display:flex;gap:8px;margin-top:16px}
+.mwarn{background:rgba(200,32,0,.07);border:1px solid var(--red3);border-radius:4px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#ff8866;line-height:1.5}
+.mwarn strong{color:var(--red2);font-family:var(--fm)}
+.minfo{background:rgba(29,78,216,.07);border:1px solid var(--blu-d);border-radius:4px;padding:10px 12px;margin-bottom:14px;font-family:var(--fm);font-size:12px;color:#60a5fa;line-height:1.5}
+.minfo.amber{background:rgba(217,119,6,.07);border-color:rgba(217,119,6,.4);color:var(--amb)}
+
+/* UNIT SELECTOR */
+.unit-options{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:6px}
+.unit-option{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rad);padding:12px 8px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.unit-option.selected{border-color:var(--grn);background:rgba(22,163,74,.08)}
+.unit-option-icon{font-size:22px;margin-bottom:4px}
+.unit-option-label{font-family:var(--fd);font-size:13px;font-weight:700;color:var(--txt)}
+.unit-option-short{font-family:var(--fm);font-size:10px;color:var(--txt3);margin-top:2px}
+.unit-desc{font-family:var(--fm);font-size:11px;color:var(--txt3);padding:8px 10px;background:var(--s3);border-radius:3px;margin-top:4px;line-height:1.5;min-height:36px}
+.unit-locked{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rad);padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.unit-locked-icon{font-size:18px}
+.unit-locked-text{flex:1}
+.unit-locked-name{font-family:var(--fd);font-size:15px;font-weight:700}
+.unit-locked-note{font-family:var(--fm);font-size:10px;color:var(--txt3);margin-top:2px}
+
+/* TWIN INPUT */
+.title-field{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:4px;color:var(--txt);font-family:var(--fd);font-size:17px;font-weight:600;padding:10px 12px;outline:none;letter-spacing:.3px}
+.title-field:focus{border-color:var(--red)}
+.title-field.ph{color:var(--txt3)}
+.twin{display:grid;grid-template-columns:1fr 28px 1fr;gap:8px;align-items:center;margin-bottom:13px}
+.tbox{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rad);padding:10px 10px 8px}
+.tbox.valid{border-color:rgba(22,163,74,.5)}.tbox.err{border-color:var(--red)}
+.tbox-label{font-family:var(--fm);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px}
+.tinput{width:100%;background:transparent;border:none;outline:none;font-family:var(--fd);font-size:24px;font-weight:700;color:var(--txt);padding:0;-webkit-appearance:none}
+.tunit-label{font-family:var(--fm);font-size:10px;color:var(--txt3);margin-top:2px}
+.cresult{border-radius:4px;padding:10px 14px;margin-bottom:13px;display:flex;align-items:center;justify-content:space-between;min-height:46px}
+.cresult.n{background:var(--s3);border:1px solid var(--bd)}
+.cresult.v{background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.3)}
+.cresult.e{background:rgba(200,32,0,.07);border:1px solid var(--red3)}
+.clbl{font-family:var(--fm);font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px}
+.cval{font-family:var(--fd);font-size:20px;font-weight:700}
+
+/* STATS */
+.srow2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.sbox{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);padding:11px 12px;min-height:64px}
+.slabel{font-family:var(--fm);font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.sval{font-family:var(--fd);font-size:22px;font-weight:700}
+
+/* PILLS */
+.pill-row{display:flex;gap:5px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px}
+.pill{font-family:var(--fm);font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid;cursor:pointer;white-space:nowrap}
+.pill.on{border-color:var(--red);background:rgba(200,32,0,.09);color:var(--red2)}
+.pill.off{border-color:var(--bd);background:var(--s2);color:var(--txt3)}
+
+/* BIKE LIST */
+.bike-item{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:var(--rad);border:1px solid var(--bd);background:var(--s2);margin-bottom:6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.bike-item.active-bike{border-color:rgba(200,32,0,.5);background:rgba(200,32,0,.06)}
+.bike-item:active{background:var(--s3)}
+.bike-item-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.bike-item-info{flex:1;min-width:0}
+.bike-item-name{font-family:var(--fd);font-size:16px;font-weight:700}
+.bike-item-meta{font-family:var(--fm);font-size:11px;color:var(--txt3);margin-top:2px}
+.bike-item-reading{font-family:var(--fd);font-size:16px;font-weight:700;flex-shrink:0;text-align:right}
+.icon-btn{background:transparent;border:1px solid var(--bd);border-radius:3px;color:var(--txt3);font-size:13px;cursor:pointer;padding:5px 7px;line-height:1}
+.icon-btn.edit:active{border-color:rgba(29,78,216,.5);color:#60a5fa;background:rgba(29,78,216,.1)}
+.icon-btn.del:active{border-color:var(--red3);color:var(--red2);background:rgba(200,32,0,.1)}
+
+/* SERVICE MANAGE */
+.svc-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);margin-bottom:5px;padding:11px 12px;display:flex;align-items:center;gap:10px}
+.svc-card-info{flex:1;min-width:0}
+.svc-card-name{font-family:var(--fd);font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svc-card-meta{font-family:var(--fm);font-size:11px;color:var(--txt3);margin-top:2px}
+.preset-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--txt3);margin-right:4px;vertical-align:middle}
+
+/* FAB */
+.fab{position:fixed;bottom:80px;right:16px;z-index:150;width:52px;height:52px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(200,32,0,.45)}
+.fab:active{opacity:.8}
+
+/* HISTORY */
+.hitem{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);padding:11px 12px;margin-bottom:5px;display:flex;gap:10px}
+.hdot{width:32px;height:32px;border-radius:50%;background:var(--s3);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px}
+.hcontent{flex:1}
+.htitle{font-family:var(--fd);font-size:15px;font-weight:600}
+.hmeta{font-family:var(--fm);font-size:11px;color:var(--txt3);margin-top:2px}
+.hnotes{font-size:12px;color:var(--txt2);margin-top:5px;font-style:italic}
+.hcost{font-family:var(--fm);font-size:11px;color:var(--grn);margin-top:3px}
+.log-del{background:transparent;border:none;color:var(--txt3);font-size:15px;cursor:pointer;padding:4px 5px;border-radius:3px}
+.log-del:active{background:rgba(200,32,0,.1);color:var(--red2)}
+
+/* SESSION CARDS */
+.scard{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);margin-bottom:5px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.scard:active{background:var(--s2)}
+.scard-inner{display:flex;align-items:center;padding:11px 12px;gap:10px}
+.scard-title{font-family:var(--fd);font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scard-meta{font-family:var(--fm);font-size:11px;color:var(--txt3);margin-top:2px}
+.scard-dur{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--txt2);flex-shrink:0}
+
+/* RIDE DETAIL */
+.rdetail-title{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:.5px;margin-bottom:4px}
+.rdetail-date{font-family:var(--fm);font-size:12px;color:var(--txt3);margin-bottom:14px}
+.rdetail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.rdetail-cell{background:var(--s2);border:1px solid var(--bd);border-radius:4px;padding:10px}
+.rdetail-cell-label{font-family:var(--fm);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.rdetail-cell-val{font-family:var(--fd);font-size:16px;font-weight:700}
+.rdetail-notes-label{font-family:var(--fm);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
+.rdetail-notes-body{font-size:14px;color:var(--txt2);line-height:1.6;background:var(--s2);border:1px solid var(--bd);border-radius:4px;padding:11px;white-space:pre-wrap}
+.rdetail-empty{font-size:13px;color:var(--txt3);font-style:italic;padding:10px;background:var(--s2);border:1px solid var(--bd);border-radius:4px}
+.rdetail-actions{display:flex;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid var(--bd)}
+
+/* COLOR PICKER */
+.color-picker-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.color-swatch.selected{border-color:#fff;transform:scale(1.15)}
+
+/* IMPACT */
+.impact-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:4px;margin-bottom:4px;background:var(--s3);border:1px solid var(--bd)}
+.impact-row.worse{background:rgba(200,32,0,.07);border-color:var(--red3)}
+.impact-row.better{background:rgba(22,163,74,.05);border-color:rgba(22,163,74,.2)}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:500;font-family:var(--fm);font-size:12px;padding:9px 18px;border-radius:4px;white-space:nowrap;pointer-events:none;animation:ti .25s ease;max-width:360px;text-align:center}
+@keyframes ti{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.toast.ok{background:#052e16;border:1px solid var(--grn);color:#4ade80}
+.toast.warn{background:rgba(200,32,0,.16);border:1px solid var(--red3);color:#ff8866}
+
+/* CHECKLIST */
+.clitem{display:flex;align-items:center;gap:12px;padding:13px 12px;background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);margin-bottom:5px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.clitem.checked{background:var(--grn-d);border-color:rgba(22,163,74,.3)}
+.cbox{width:22px;height:22px;border-radius:3px;border:2px solid var(--bd2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.clitem.checked .cbox{background:var(--grn);border-color:var(--grn)}
+.clabel{font-size:14px;font-weight:500;flex:1}
+.clitem.checked .clabel{color:var(--txt2);text-decoration:line-through}
+
+/* ONBOARDING */
+.onboard{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;text-align:center;background:var(--bg)}
+.onboard-logo{font-family:var(--fd);font-size:48px;font-weight:700;letter-spacing:2px;margin-bottom:8px}
+.onboard-logo span{color:var(--red2)}
+.onboard-sub{font-family:var(--fm);font-size:12px;color:var(--txt3);letter-spacing:1px;margin-bottom:32px}
+.onboard-cta{font-size:15px;color:var(--txt2);margin-bottom:24px;line-height:1.6;max-width:320px}
+.empty{text-align:center;padding:36px 20px;color:var(--txt3);font-family:var(--fd);font-size:14px}
+.tag{display:inline-block;font-family:var(--fm);font-size:10px;padding:2px 6px;border-radius:2px;background:var(--s3);color:var(--txt3);border:1px solid var(--bd);margin-right:4px}
+
+/* ODOMETER UPDATE */
+.odo-input-wrap{position:relative;margin-bottom:6px}
+.odo-input{width:100%;background:var(--s2);border:2px solid var(--bd);border-radius:6px;color:var(--txt);font-family:var(--fd);font-size:36px;font-weight:700;padding:14px 60px 14px 16px;outline:none;letter-spacing:1px;-webkit-appearance:none;text-align:left}
+.odo-input:focus{border-color:var(--grn)}
+.odo-input.err{border-color:var(--red)!important}
+.odo-unit-suffix{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-family:var(--fm);font-size:14px;color:var(--txt3);pointer-events:none}
+.odo-current-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:4px;margin-bottom:14px}
+.odo-current-label{font-family:var(--fm);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px}
+.odo-current-val{font-family:var(--fd);font-size:18px;font-weight:700}
+.odo-delta{font-family:var(--fm);font-size:11px;color:var(--grn);margin-top:2px}
+.odo-last-updated{font-family:var(--fm);font-size:10px;color:var(--txt3);margin-top:5px}
+.snap-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--rad);border:1px solid var(--bd);background:var(--s2);margin-bottom:4px}
+.snap-source{font-family:var(--fm);font-size:9px;padding:2px 5px;border-radius:2px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.snap-source.manual{background:rgba(29,78,216,.15);color:#60a5fa;border:1px solid var(--blu-d)}
+.snap-source.ride{background:var(--grn-d);color:#4ade80;border:1px solid rgba(22,163,74,.3)}
+.snap-odo{font-family:var(--fd);font-size:15px;font-weight:700;flex:1}
+.snap-date{font-family:var(--fm);font-size:10px;color:var(--txt3)}
+.snap-del{background:transparent;border:none;color:var(--txt3);font-size:13px;cursor:pointer;padding:3px 5px;border-radius:3px;flex-shrink:0}
+.snap-del:active{background:rgba(200,32,0,.1);color:var(--red2)}
+.odo-update-btn{display:flex;align-items:center;gap:7px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--rad);padding:9px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-top:4px;width:100%}
+.odo-update-btn:active{background:var(--s3)}
+.odo-update-btn-icon{font-size:16px;flex-shrink:0}
+.odo-update-btn-text{font-family:var(--fd);font-size:14px;font-weight:600;flex:1;text-align:left}
+
+/* CHECKLIST MANAGEMENT */
+.cl-manage-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.cl-back-btn{background:transparent;border:1px solid var(--bd);border-radius:3px;color:var(--txt3);font-size:13px;cursor:pointer;padding:6px 10px;font-family:var(--fm)}
+.cl-back-btn:active{background:var(--s3)}
+.cl-cat-row{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);margin-bottom:5px;overflow:hidden}
+.cl-cat-header{display:flex;align-items:center;padding:11px 12px;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cl-cat-header:active{background:var(--s2)}
+.cl-cat-icon{font-size:18px;min-width:24px;text-align:center}
+.cl-cat-name{font-family:var(--fd);font-size:16px;font-weight:700;flex:1}
+.cl-cat-count{font-family:var(--fm);font-size:10px;color:var(--txt3)}
+.cl-cat-caret{font-size:10px;color:var(--txt3);transition:transform .2s}
+.cl-cat-caret.open{transform:rotate(180deg)}
+.cl-cat-body{border-top:1px solid var(--bd);background:var(--s2);padding:8px}
+.cl-item-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:3px;margin-bottom:3px;background:var(--s3);border:1px solid var(--bd)}
+.cl-item-name{font-size:14px;flex:1;color:var(--txt)}
+.cl-item-name.disabled{color:var(--txt3);text-decoration:line-through}
+.cl-toggle{width:36px;height:20px;border-radius:10px;border:none;cursor:pointer;flex-shrink:0;position:relative;transition:background .2s}
+.cl-toggle.on{background:var(--grn)}
+.cl-toggle.off{background:var(--bd2)}
+.cl-toggle-dot{position:absolute;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s}
+.cl-toggle.on .cl-toggle-dot{left:19px}
+.cl-toggle.off .cl-toggle-dot{left:3px}
+.cl-reorder-btns{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.cl-reorder-btn{background:transparent;border:1px solid var(--bd);border-radius:2px;color:var(--txt3);font-size:10px;cursor:pointer;padding:2px 5px;line-height:1}
+.cl-reorder-btn:disabled{opacity:.25;cursor:not-allowed}
+.cl-reorder-btn:not(:disabled):active{background:var(--s4);color:var(--txt2)}
+.cl-add-cat-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:1px dashed var(--bd2);border-radius:var(--rad);background:transparent;color:var(--txt3);font-family:var(--fd);font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;-webkit-tap-highlight-color:transparent}
+.cl-add-cat-btn:active{background:var(--s2)}
+.cl-emoji-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px}
+.cl-emoji-opt{background:var(--s2);border:1px solid var(--bd);border-radius:4px;font-size:22px;padding:8px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.cl-emoji-opt.selected{border-color:var(--grn);background:rgba(22,163,74,.1)}
+.cl-emoji-opt:active{background:var(--s3)}
+.cl-progress-card{margin:0 0 12px;background:linear-gradient(140deg,#0c0c0f,#13131a);border:1px solid var(--bd);border-top:3px solid var(--grn);border-radius:6px;padding:16px;display:flex;align-items:center;gap:16px}
+.cl-progress-text{flex:1}
+.cl-progress-title{font-family:var(--fd);font-size:20px;font-weight:700;letter-spacing:.3px}
+.cl-progress-sub{font-family:var(--fm);font-size:11px;color:var(--txt3);margin-top:3px}
+.cl-ring{flex-shrink:0}
+.cl-cat-section{margin-bottom:8px}
+.cl-cat-section-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--s1);border:1px solid var(--bd);border-radius:var(--rad);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cl-cat-section-header:active{background:var(--s2)}
+.cl-cat-section-icon{font-size:16px}
+.cl-cat-section-name{font-family:var(--fd);font-size:15px;font-weight:700;flex:1}
+.cl-cat-section-progress{font-family:var(--fm);font-size:10px;color:var(--txt3)}
+.cl-cat-section-caret{font-size:10px;color:var(--txt3);transition:transform .15s}
+.cl-cat-section-caret.open{transform:rotate(180deg)}
+.cl-cat-items{padding:4px 0 2px}
+.cl-manage-item-add{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:9px;border:1px dashed var(--bd);border-radius:3px;background:transparent;color:var(--txt3);font-family:var(--fm);font-size:11px;cursor:pointer;margin-top:4px}
+.cl-manage-item-add:active{background:var(--s3)}
+`;
+
+// =============================================================================
+// APP
+// =============================================================================
+export default function App() {
+  const [state, setState]               = useState(INITIAL_STATE);
+  const [activeTab, setActiveTab]       = useState("dash");
+  const [modal, setModal]               = useState(null);
+  const [expandedTask, setExpandedTask] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLogTarget, setDeleteLogTarget] = useState(null);
+  const [viewSession, setViewSession]   = useState(null);
+  const [editingSession, setEditingSession] = useState(false);
+  const [editingDef, setEditingDef]     = useState(null);
+  const [editingBike, setEditingBike]   = useState(null);
+  const [form, setForm]                 = useState({});
+  const [logMode, setLogMode]           = useState("duration");
+  const [preRideChecks, setPreRideChecks] = useState({});  // { [bikeId]: { [itemId]: bool } }
+  const [clEditingCat, setClEditingCat]   = useState(null); // ChecklistCategory | null
+  const [histFilter, setHistFilter]     = useState("all");
+  const [histView, setHistView]         = useState("service");
+  const [trackCat, setTrackCat]         = useState("All");
+  const [toast, setToast]               = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const showToast = useCallback((msg, type = "ok") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3200);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModal(null); setSelectedTask(null); setDeleteTarget(null);
+    setDeleteLogTarget(null); setEditingDef(null); setEditingBike(null);
+    setForm({}); setDeleteConfirmText("");
+  }, []);
+
+  // ── Active bike scoped selectors ───────────────────────────────────────────
+  const activeBike = useMemo(
+    () => state.bikes.find((b) => b.id === state.activeBikeId) ?? state.bikes[0],
+    [state.bikes, state.activeBikeId]
+  );
+  const unit = activeBike?.trackingUnit ?? "hours"; // always resolved from bike
+  const unitCfg = TRACKING_UNITS[unit];
+
+  const bikeSessions = useMemo(
+    () => state.sessions.filter((s) => s.bikeId === state.activeBikeId).sort((a, b) => a.startReading - b.startReading),
+    [state.sessions, state.activeBikeId]
+  );
+  const bikeDefs    = useMemo(() => state.serviceDefs.filter((d) => d.bikeId === state.activeBikeId), [state.serviceDefs, state.activeBikeId]);
+  const bikeRecords = useMemo(() => state.serviceRecords.filter((r) => r.bikeId === state.activeBikeId), [state.serviceRecords, state.activeBikeId]);
+
+  // ── Checklist selectors for active bike ───────────────────────────────────
+  // MIGRATION: if the bike has no checklist data yet (e.g. created before this
+  // feature), generate the default template on the fly and persist it.
+  const bikeClCategories = useMemo(
+    () => (state.checklistCategories ?? [])
+      .filter((c) => c.bikeId === state.activeBikeId)
+      .sort((a, b) => a.order - b.order),
+    [state.checklistCategories, state.activeBikeId]
+  );
+  const bikeClItems = useMemo(
+    () => (state.checklistItems ?? [])
+      .filter((i) => i.bikeId === state.activeBikeId),
+    [state.checklistItems, state.activeBikeId]
+  );
+  // Per-ride check state for the active bike only
+  const bikeChecks = useMemo(
+    () => (preRideChecks[state.activeBikeId] ?? {}),
+    [preRideChecks, state.activeBikeId]
+  );
+  const checkedCount  = bikeClItems.filter((i) => i.enabled && bikeChecks[i.id]).length;
+  const enabledCount  = bikeClItems.filter((i) => i.enabled).length;
+
+  // ── Odometer snapshots for active bike ────────────────────────────────────
+  const bikeSnapshots = useMemo(
+    () => (state.odometerSnapshots ?? []).filter((s) => s.bikeId === state.activeBikeId),
+    [state.odometerSnapshots, state.activeBikeId]
+  );
+
+  // EFFECTIVE TOTAL READING — the number every service calculation uses.
+  // = max(ride-chain total, highest snapshot odometer)
+  // Hours bikes are unaffected (snapshots only created for km/mi bikes).
+  const totalReading = useMemo(
+    () => calcEffectiveTotalReading(
+      bikeSessions,
+      activeBike?.initialReading ?? 0,
+      unit,
+      state.odometerSnapshots ?? [],
+      state.activeBikeId
+    ),
+    [bikeSessions, activeBike, unit, state.odometerSnapshots, state.activeBikeId]
+  );
+
+  // Latest snapshot for "last updated X ago" display
+  const latestSnapshot = useMemo(
+    () => getLatestSnapshot(state.odometerSnapshots ?? [], state.activeBikeId),
+    [state.odometerSnapshots, state.activeBikeId]
+  );
+
+  // minStart for session logging = max(rideChainEnd, maxSnapshot)
+  // This prevents a session being logged "below" a known manual odometer.
+  const lastSessionEnd = bikeSessions.length ? sessionEnd(bikeSessions[bikeSessions.length - 1]) : 0;
+  const rideChainTotal = roundForUnit((activeBike?.initialReading ?? 0) + lastSessionEnd, unit);
+  const minStart = roundForUnit(Math.max(rideChainTotal, getMaxSnapshot(state.odometerSnapshots ?? [], state.activeBikeId) ?? 0), unit);
+
+  const enriched = useMemo(() => enrichDefs(bikeDefs), [bikeDefs]);
+
+  const taskStatuses = useMemo(() => {
+    return enriched.map((def) => {
+      const due = getNextDue(def, bikeRecords, totalReading, activeBike?.ridingMode ?? "normal", unit);
+      return { ...def, ...due, status: getStatus(due.remaining, unit) };
+    }).sort((a, b) => {
+      const o = { overdue: 0, "due-soon": 1, ok: 2 };
+      return o[a.status] - o[b.status] || a.remaining - b.remaining;
+    });
+  }, [enriched, bikeRecords, totalReading, activeBike, unit]);
+
+  const overdueCount = taskStatuses.filter((t) => t.status === "overdue").length;
+  const dueSoonCount = taskStatuses.filter((t) => t.status === "due-soon").length;
+  const totalSpent   = bikeRecords.reduce((s, r) => s + (r.cost || 0), 0);
+
+  // Per-bike total readings for garage switcher (snapshot-aware)
+  const bikeReadings = useMemo(() => {
+    return Object.fromEntries(state.bikes.map((b) => {
+      const bSess = state.sessions.filter((s) => s.bikeId === b.id).sort((a, b2) => a.startReading - b2.startReading);
+      const bUnit = b.trackingUnit ?? "hours";
+      return [b.id, calcEffectiveTotalReading(bSess, b.initialReading ?? 0, bUnit, state.odometerSnapshots ?? [], b.id)];
+    }));
+  }, [state.bikes, state.sessions, state.odometerSnapshots]);
+
+  // ── Bike management ────────────────────────────────────────────────────────
+  const switchBike = (bikeId) => {
+    setModal(null); setForm({});
+    setState((s) => ({ ...s, activeBikeId: bikeId }));
+    setExpandedTask(null); setTrackCat("All"); setHistFilter("all");
+  };
+
+  const openAddBike = () => {
+    setEditingBike(null);
+    setForm({ name: "", make: "", model: "", year: "", initialReading: "0", color: BIKE_COLORS[0], trackingUnit: "hours", preloadSchedule: "generic_hours" });
+    setModal("edit-bike");
+  };
+
+  const openEditBike = (bike) => {
+    setEditingBike(bike);
+    setForm({ name: bike.name, make: bike.make ?? "", model: bike.model ?? "", year: bike.year ? String(bike.year) : "", initialReading: String(bike.initialReading ?? 0), color: bike.color ?? BIKE_COLORS[0] });
+    // trackingUnit intentionally NOT in form — it's immutable
+    setModal("edit-bike");
+  };
+
+  const handleSaveBike = () => {
+    const name = form.name?.trim();
+    if (!name) return;
+    if (editingBike) {
+      // Unit is NOT updated here — it's immutable
+      setState((s) => ({
+        ...s,
+        bikes: s.bikes.map((b) => b.id === editingBike.id ? {
+          ...b, name,
+          make: form.make?.trim() ?? b.make,
+          model: form.model?.trim() ?? b.model,
+          year: form.year ? parseInt(form.year) : b.year,
+          color: form.color ?? b.color,
+          // initialReading NOT editable after creation either — it's part of the
+          // hourmeter chain. Changing it would corrupt all readings.
+        } : b),
+      }));
+      showToast(`${name} updated.`, "ok");
+    } else {
+      // NEW BIKE — unit is set here and never again
+      if (!form.trackingUnit) return;
+      const newId      = "bike_" + uid();
+      const newDefs    = resolveTemplate(form.preloadSchedule, newId);
+      const initReading = parseFloat(form.initialReading) || 0;
+      const newBike    = {
+        id: newId, name,
+        make: form.make?.trim() ?? "",
+        model: form.model?.trim() ?? "",
+        year: form.year ? parseInt(form.year) : null,
+        trackingUnit: form.trackingUnit,  // immutable from here on
+        unitConfirmed: true,
+        initialReading: initReading,
+        ridingMode: "normal",
+        color: form.color ?? BIKE_COLORS[0],
+        createdAt: new Date().toISOString(),
+      };
+      const newCl = defaultChecklistTemplate(newId);
+      setState((s) => ({
+        ...s,
+        bikes: [...s.bikes, newBike],
+        serviceDefs: [...s.serviceDefs, ...newDefs],
+        checklistCategories: [...(s.checklistCategories ?? []), ...newCl.categories],
+        checklistItems:      [...(s.checklistItems ?? []),      ...newCl.items],
+        activeBikeId: newId,
+      }));
+      showToast(`${name} added. Ready to ride.`, "ok");
+    }
+    closeModal();
+  };
+
+  const stageDeleteBike = (bike) => {
+    setDeleteTarget({ ...bike, _isBike: true });
+    setDeleteConfirmText("");
+    setModal("confirm-delete-bike");
+  };
+
+  const handleDeleteBike = () => {
+    if (!deleteTarget?._isBike || deleteConfirmText !== deleteTarget.name) return;
+    const id = deleteTarget.id;
+    setState((s) => {
+      const bikes                = s.bikes.filter((b) => b.id !== id);
+      const sessions             = s.sessions.filter((sess) => sess.bikeId !== id);
+      const serviceDefs          = s.serviceDefs.filter((d) => d.bikeId !== id);
+      const serviceRecords       = s.serviceRecords.filter((r) => r.bikeId !== id);
+      const odometerSnapshots    = (s.odometerSnapshots ?? []).filter((snap) => snap.bikeId !== id);
+      const checklistCategories  = (s.checklistCategories ?? []).filter((c) => c.bikeId !== id);
+      const checklistItems       = (s.checklistItems ?? []).filter((i) => i.bikeId !== id);
+      const activeBikeId         = s.activeBikeId === id ? (bikes[0]?.id ?? null) : s.activeBikeId;
+      return { bikes, sessions, serviceDefs, serviceRecords, odometerSnapshots, checklistCategories, checklistItems, activeBikeId };
+    });
+    setPreRideChecks((c) => { const n = { ...c }; delete n[id]; return n; });
+    closeModal();
+    showToast(`${deleteTarget.name} and all data deleted.`, "warn");
+  };
+
+  // Unit confirmation (migration path for bikes without confirmed unit)
+  const confirmUnit = (bikeId, chosenUnit) => {
+    setState((s) => ({
+      ...s,
+      bikes: s.bikes.map((b) => b.id === bikeId
+        ? { ...b, trackingUnit: chosenUnit, unitConfirmed: true }
+        : b
+      ),
+    }));
+    showToast(`Tracking unit confirmed: ${TRACKING_UNITS[chosenUnit].label}`, "ok");
+  };
+
+  const toggleRidingMode = () => {
+    if (!activeBike) return;
+    const newMode = activeBike.ridingMode === "normal" ? "aggressive" : "normal";
+    setState((s) => ({ ...s, bikes: s.bikes.map((b) => b.id === s.activeBikeId ? { ...b, ridingMode: newMode } : b) }));
+  };
+
+  // ── Checklist check/toggle (pre-ride flow) ─────────────────────────────────
+  const toggleCheck = (itemId) => {
+    setPreRideChecks((c) => ({
+      ...c,
+      [state.activeBikeId]: {
+        ...(c[state.activeBikeId] ?? {}),
+        [itemId]: !(c[state.activeBikeId]?.[itemId] ?? false),
+      },
+    }));
+  };
+
+  const resetChecks = () => {
+    setPreRideChecks((c) => ({ ...c, [state.activeBikeId]: {} }));
+  };
+
+  // ── Checklist category handlers ────────────────────────────────────────────
+  const openAddCategory = () => {
+    setClEditingCat(null);
+    setForm({ name: "", icon: "🏍" });
+    setModal("cl-cat");
+  };
+
+  const openEditCategory = (cat) => {
+    setClEditingCat(cat);
+    setForm({ name: cat.name, icon: cat.icon });
+    setModal("cl-cat");
+  };
+
+  const handleSaveCategory = () => {
+    const name = form.name?.trim();
+    if (!name) return;
+    const icon = form.icon || "🔧";
+    if (clEditingCat) {
+      setState((s) => ({
+        ...s,
+        checklistCategories: (s.checklistCategories ?? []).map((c) =>
+          c.id === clEditingCat.id ? { ...c, name, icon } : c
+        ),
+      }));
+    } else {
+      const maxOrder = bikeClCategories.reduce((m, c) => Math.max(m, c.order), -1);
+      const newCat = {
+        id: "clcat_" + uid(), bikeId: state.activeBikeId,
+        name, icon, order: maxOrder + 1, createdAt: new Date().toISOString(),
+      };
+      setState((s) => ({
+        ...s,
+        checklistCategories: [...(s.checklistCategories ?? []), newCat],
+      }));
+    }
+    setClEditingCat(null);
+    closeModal();
+  };
+
+  const openDeleteCategory = (cat) => {
+    setClEditingCat(cat);
+    setModal("cl-del-cat");
+  };
+
+  const handleDeleteCategory = () => {
+    if (!clEditingCat) return;
+    const catId  = clEditingCat.id;
+    const itemIds = (state.checklistItems ?? [])
+      .filter((i) => i.categoryId === catId)
+      .map((i) => i.id);
+    setState((s) => ({
+      ...s,
+      checklistCategories: (s.checklistCategories ?? []).filter((c) => c.id !== catId),
+      checklistItems:      (s.checklistItems ?? []).filter((i) => i.categoryId !== catId),
+    }));
+    // Clear any checked state for deleted items
+    if (itemIds.length) {
+      setPreRideChecks((c) => {
+        const bikeChecksNow = { ...(c[state.activeBikeId] ?? {}) };
+        itemIds.forEach((id) => delete bikeChecksNow[id]);
+        return { ...c, [state.activeBikeId]: bikeChecksNow };
+      });
+    }
+    setClEditingCat(null);
+    closeModal();
+    showToast(`${clEditingCat.name} and its items removed.`, "warn");
+  };
+
+  const reorderCategory = (catId, dir) => {
+    // dir: -1 (up) or +1 (down)
+    setState((s) => {
+      const cats = [...(s.checklistCategories ?? [])]
+        .filter((c) => c.bikeId === state.activeBikeId)
+        .sort((a, b) => a.order - b.order);
+      const idx  = cats.findIndex((c) => c.id === catId);
+      const swap = idx + dir;
+      if (swap < 0 || swap >= cats.length) return s;
+      const newCats = (s.checklistCategories ?? []).map((c) => {
+        if (c.id === cats[idx].id) return { ...c, order: cats[swap].order };
+        if (c.id === cats[swap].id) return { ...c, order: cats[idx].order };
+        return c;
+      });
+      return { ...s, checklistCategories: newCats };
+    });
+  };
+
+  // ── Checklist item handlers ────────────────────────────────────────────────
+  const openAddItem = (catId) => {
+    setForm({ name: "", categoryId: catId });
+    setModal("cl-item");
+  };
+
+  const openEditItem = (item) => {
+    setForm({ name: item.name, categoryId: item.categoryId, _itemId: item.id });
+    setModal("cl-item");
+  };
+
+  const handleSaveItem = () => {
+    const name = form.name?.trim();
+    if (!name || !form.categoryId) return;
+    if (form._itemId) {
+      // Edit
+      setState((s) => ({
+        ...s,
+        checklistItems: (s.checklistItems ?? []).map((i) =>
+          i.id === form._itemId ? { ...i, name, categoryId: form.categoryId } : i
+        ),
+      }));
+    } else {
+      // Add
+      const catItems = (state.checklistItems ?? []).filter((i) => i.categoryId === form.categoryId);
+      const maxOrder = catItems.reduce((m, i) => Math.max(m, i.order), -1);
+      const newItem  = {
+        id: "clitem_" + uid(), bikeId: state.activeBikeId,
+        categoryId: form.categoryId, name,
+        order: maxOrder + 1, enabled: true,
+        createdAt: new Date().toISOString(),
+      };
+      setState((s) => ({
+        ...s,
+        checklistItems: [...(s.checklistItems ?? []), newItem],
+      }));
+    }
+    closeModal();
+  };
+
+  const handleDeleteItem = (itemId) => {
+    setState((s) => ({
+      ...s,
+      checklistItems: (s.checklistItems ?? []).filter((i) => i.id !== itemId),
+    }));
+    setPreRideChecks((c) => {
+      const bikeChecksNow = { ...(c[state.activeBikeId] ?? {}) };
+      delete bikeChecksNow[itemId];
+      return { ...c, [state.activeBikeId]: bikeChecksNow };
+    });
+  };
+
+  const handleToggleItemEnabled = (itemId) => {
+    setState((s) => ({
+      ...s,
+      checklistItems: (s.checklistItems ?? []).map((i) =>
+        i.id === itemId ? { ...i, enabled: !i.enabled } : i
+      ),
+    }));
+  };
+
+  const reorderItem = (itemId, catId, dir) => {
+    setState((s) => {
+      const items = [...(s.checklistItems ?? [])]
+        .filter((i) => i.categoryId === catId)
+        .sort((a, b) => a.order - b.order);
+      const idx  = items.findIndex((i) => i.id === itemId);
+      const swap = idx + dir;
+      if (swap < 0 || swap >= items.length) return s;
+      const newItems = (s.checklistItems ?? []).map((i) => {
+        if (i.id === items[idx].id) return { ...i, order: items[swap].order };
+        if (i.id === items[swap].id) return { ...i, order: items[idx].order };
+        return i;
+      });
+      return { ...s, checklistItems: newItems };
+    });
+  };
+
+  // ── Odometer snapshot handlers (km/mi bikes only) ──────────────────────────
+  // Guard: only distance-based bikes have this feature
+  const canUpdateOdometer = unit === "km" || unit === "mi";
+
+  const openOdometerUpdate = () => {
+    if (!canUpdateOdometer) return;
+    setForm({ odometer: String(totalReading), date: new Date().toISOString().split("T")[0] });
+    setModal("odometer-update");
+  };
+
+  const odoInputVal     = parseFloat(form.odometer);
+  const odoFloor        = totalReading; // cannot go below current effective reading
+  const odoTooLow       = !isNaN(odoInputVal) && odoInputVal < odoFloor;
+  const odoNegative     = !isNaN(odoInputVal) && odoInputVal < 0;
+  const odoUnchanged    = !isNaN(odoInputVal) && odoInputVal === odoFloor;
+  const odoDelta        = !isNaN(odoInputVal) && odoInputVal > odoFloor ? roundForUnit(odoInputVal - odoFloor, unit) : null;
+  const odoValid        = !isNaN(odoInputVal) && odoInputVal >= 0 && odoInputVal >= odoFloor && !odoUnchanged;
+
+  const odoError = (() => {
+    if (odoNegative)  return "The odometer value cannot be negative.";
+    if (odoTooLow)    return `The odometer value cannot be lower than the last recorded value (${fmtShort(odoFloor, unit)}).`;
+    return null;
+  })();
+
+  const handleSaveOdometer = () => {
+    if (!odoValid) return;
+    const snap = {
+      id: uid(),
+      bikeId: state.activeBikeId,
+      odometer: roundForUnit(odoInputVal, unit),
+      date: form.date,
+      source: "manual",
+      createdAt: new Date().toISOString(),
+    };
+    setState((s) => ({
+      ...s,
+      odometerSnapshots: [...(s.odometerSnapshots ?? []), snap],
+    }));
+    closeModal();
+    showToast(`Odometer updated to ${fmtShort(snap.odometer, unit)}.`, "ok");
+  };
+
+  const handleDeleteSnapshot = (snapId) => {
+    // Validate that deleting this snapshot won't drop the odometer BELOW the
+    // current ride-chain total. If the ride chain already exceeds all remaining
+    // snapshots, deletion is always safe. If not, the effective reading drops —
+    // warn and confirm, but still allow it (the reading reverts to ride-chain or
+    // the next-highest snapshot, both of which are valid historical values).
+    setState((s) => ({
+      ...s,
+      odometerSnapshots: (s.odometerSnapshots ?? []).filter((snap) => snap.id !== snapId),
+    }));
+    showToast("Snapshot removed. Odometer recalculated.", "ok");
+  };
+
+  // ── Session handlers ───────────────────────────────────────────────────────
+  // Guard: prevent logging sessions against unconfirmed-unit bikes
+  const canLogSession = activeBike?.unitConfirmed === true;
+
+  const openLogSession = () => {
+    if (!canLogSession) return;
+    setModal("log-session");
+    setForm({ title: DEFAULT_TITLE, startReading: String(minStart), durationReading: "", endReading: "", notes: "", date: new Date().toISOString().split("T")[0] });
+    setLogMode("duration");
+  };
+
+  const fStart = parseFloat(form.startReading);
+  const fDur   = parseFloat(form.durationReading);
+  const fEnd   = parseFloat(form.endReading);
+  const startBad = !isNaN(fStart) && fStart < minStart;
+  const endBad   = logMode === "final" && form.endReading !== "" && !isNaN(fEnd) && fEnd <= fStart;
+
+  const sessionCalc = useMemo(() => {
+    if (isNaN(fStart) || startBad) return null;
+    if (logMode === "duration") {
+      if (isNaN(fDur) || fDur <= 0) return null;
+      return { duration: fDur, end: roundForUnit(fStart + fDur, unit) };
+    } else {
+      if (isNaN(fEnd) || fEnd <= fStart) return null;
+      return { duration: roundForUnit(fEnd - fStart, unit), end: fEnd };
+    }
+  }, [logMode, fStart, fDur, fEnd, startBad, unit]);
+  const sessionValid = !!sessionCalc;
+
+  const handleLogSession = () => {
+    if (!sessionValid || !canLogSession) return;
+    // Store session readings relative to 0 (initialReading is the bike-level offset)
+    // startReading in the session = absolute reading - initialReading
+    const initialR = activeBike?.initialReading ?? 0;
+    const relativeStart = roundForUnit(fStart - initialR, unit);
+    setState((s) => ({
+      ...s,
+      sessions: [...s.sessions, {
+        id: uid(), bikeId: s.activeBikeId, date: form.date,
+        title: sanitizeTitle(form.title),
+        startReading: relativeStart,
+        durationReading: sessionCalc.duration,
+        notes: form.notes ?? "", createdAt: new Date().toISOString(),
+      }],
+    }));
+    // Reset the pre-ride checklist for this bike — per-ride, not persistent
+    setPreRideChecks((c) => ({ ...c, [state.activeBikeId]: {} }));
+    closeModal();
+  };
+
+  const handleDeleteSession = (session) => {
+    setState((s) => {
+      const bikeOnly = s.sessions.filter((sess) => sess.bikeId === s.activeBikeId && sess.id !== session.id);
+      const reseq    = resequence(bikeOnly);
+      const others   = s.sessions.filter((sess) => sess.bikeId !== s.activeBikeId);
+      return { ...s, sessions: [...others, ...reseq] };
+    });
+    setViewSession(null);
+    showToast("Session deleted. Readings recalculated.", "ok");
+  };
+
+  const openSessionDetail = (s) => {
+    setViewSession(s);
+    setEditingSession(false);
+    setForm({ title: s.title || DEFAULT_TITLE, notes: s.notes || "", date: s.date, durationReading: String(s.durationReading) });
+  };
+  const closeSessionDetail = () => { setViewSession(null); setEditingSession(false); setForm({}); };
+
+  const handleSaveSessionEdit = () => {
+    const newDur = parseFloat(form.durationReading);
+    if (!viewSession || isNaN(newDur) || newDur <= 0) return;
+    setState((s) => {
+      const bikeOnly = s.sessions
+        .filter((sess) => sess.bikeId === s.activeBikeId)
+        .map((sess) => sess.id === viewSession.id
+          ? { ...sess, title: sanitizeTitle(form.title), notes: form.notes || "", date: form.date, durationReading: roundForUnit(newDur, unit) }
+          : sess
+        );
+      const others = s.sessions.filter((sess) => sess.bikeId !== s.activeBikeId);
+      return { ...s, sessions: [...others, ...resequence(bikeOnly)] };
+    });
+    closeSessionDetail();
+    showToast("Ride updated. Readings recalculated.", "ok");
+  };
+
+  // ── Service record handlers ────────────────────────────────────────────────
+  const openCompleteTask = (task) => {
+    setModal("complete-task"); setSelectedTask(task);
+    setForm({ notes: "", cost: "", parts: "", date: new Date().toISOString().split("T")[0] });
+  };
+
+  const handleCompleteTask = () => {
+    if (!selectedTask) return;
+    setState((s) => ({
+      ...s,
+      serviceRecords: [...s.serviceRecords, {
+        id: uid(), bikeId: s.activeBikeId, defId: selectedTask.id,
+        completedAt: totalReading, date: form.date,
+        notes: form.notes || "", cost: parseFloat(form.cost) || 0, parts: form.parts || "",
+      }],
+    }));
+    setExpandedTask(null); closeModal();
+    showToast(`${selectedTask.name} logged at ${fmtShort(totalReading, unit)}`, "ok");
+  };
+
+  const logDeleteImpact = useMemo(() => {
+    if (!deleteLogTarget) return [];
+    const after = bikeRecords.filter((r) => r.id !== deleteLogTarget.id);
+    return enriched.map((def) => {
+      const b = getNextDue(def, bikeRecords, totalReading, activeBike?.ridingMode ?? "normal", unit);
+      const a = getNextDue(def, after,       totalReading, activeBike?.ridingMode ?? "normal", unit);
+      const changed = Math.abs(b.nextDue - a.nextDue) > (unit === "hours" ? 0.05 : 5);
+      return { def, before: b, after: a, statusBefore: getStatus(b.remaining, unit), statusAfter: getStatus(a.remaining, unit), changed, worse: a.remaining < b.remaining };
+    }).filter((r) => r.changed);
+  }, [deleteLogTarget, bikeRecords, enriched, totalReading, activeBike, unit]);
+
+  const handleDeleteLog = () => {
+    if (!deleteLogTarget) return;
+    const defName = bikeDefs.find((d) => d.id === deleteLogTarget.defId)?.name ?? "Service";
+    setState((s) => ({ ...s, serviceRecords: s.serviceRecords.filter((r) => r.id !== deleteLogTarget.id) }));
+    setDeleteLogTarget(null); setModal(null);
+    showToast(`${defName} record deleted. Recalculated.`, "ok");
+  };
+
+  // ── Service def handlers ───────────────────────────────────────────────────
+  const openAddDef = () => {
+    setEditingDef(null);
+    setForm({ name: "", category: "Engine", intervalNormal: "", intervalAggressive: "", firstServiceAt: "", notes: "", icon: "" });
+    setModal("edit-def");
+  };
+
+  const openEditDef = (def) => {
+    setEditingDef(def);
+    setForm({ name: def.name, category: def.category, intervalNormal: def.dependsOnKey ? "" : String(def.intervalNormal ?? ""), intervalAggressive: def.dependsOnKey ? "" : String(def.intervalAggressive ?? ""), firstServiceAt: def.firstServiceAt ? String(def.firstServiceAt) : "", notes: def.notes ?? "", icon: def.icon ?? "" });
+    setModal("edit-def");
+  };
+
+  const defFormValid = useMemo(() => {
+    const name = form.name?.trim();
+    const iN = parseFloat(form.intervalNormal), iA = parseFloat(form.intervalAggressive);
+    return name && name.length > 0 && !isNaN(iN) && iN > 0 && !isNaN(iA) && iA > 0;
+  }, [form]);
+
+  // Sanity check: interval way too small for unit
+  const defIntervalSanityWarn = useMemo(() => {
+    const iN = parseFloat(form.intervalNormal);
+    if (isNaN(iN) || iN <= 0) return null;
+    if (iN < unitCfg.sanityIntervalMin) {
+      return `${iN} ${unitCfg.short} is unusually short for a service interval. Did you mean ${iN * (unit === "hours" ? 1 : 100)} ${unitCfg.short}?`;
+    }
+    return null;
+  }, [form.intervalNormal, unitCfg, unit]);
+
+  const handleSaveDef = () => {
+    const name = form.name?.trim();
+    if (!name) return;
+    const dup = bikeDefs.some((d) => d.name.toLowerCase() === name.toLowerCase() && d.id !== editingDef?.id);
+    if (dup) { showToast("A service with that name already exists.", "warn"); return; }
+    const iN = parseFloat(form.intervalNormal), iA = parseFloat(form.intervalAggressive);
+    if (isNaN(iN) || iN <= 0 || isNaN(iA) || iA <= 0) return;
+    const icon = form.icon?.trim() || CAT_ICONS[form.category] || "🔧";
+    if (editingDef) {
+      setState((s) => ({ ...s, serviceDefs: s.serviceDefs.map((d) => d.id === editingDef.id ? { ...d, name, category: form.category, intervalNormal: iN, intervalAggressive: iA, firstServiceAt: form.firstServiceAt ? parseFloat(form.firstServiceAt) : null, notes: form.notes?.trim() ?? "", icon } : d) }));
+      showToast(`${name} updated. Intervals recalculated.`, "ok");
+    } else {
+      setState((s) => ({ ...s, serviceDefs: [...s.serviceDefs, { id: uid(), bikeId: s.activeBikeId, defKey: uid(), name, category: form.category, icon, intervalNormal: iN, intervalAggressive: iA, firstServiceAt: form.firstServiceAt ? parseFloat(form.firstServiceAt) : null, dependsOnKey: null, dependsOnCount: null, notes: form.notes?.trim() ?? "", isPreset: false }] }));
+      showToast(`${name} added.`, "ok");
+    }
+    closeModal();
+  };
+
+  const handleDeleteDef = (def) => {
+    const logCount = bikeRecords.filter((r) => r.defId === def.id).length;
+    setState((s) => ({ ...s, serviceDefs: s.serviceDefs.filter((d) => d.id !== def.id), serviceRecords: s.serviceRecords.filter((r) => r.defId !== def.id) }));
+    showToast(`${def.name} removed. ${logCount} record${logCount !== 1 ? "s" : ""} deleted.`, "warn");
+  };
+
+  const trackCategories = useMemo(() => ["All", ...new Set(bikeDefs.map((d) => d.category))], [bikeDefs]);
+
+  // ── Onboarding (no bikes) ──────────────────────────────────────────────────
+  if (state.bikes.length === 0 || !activeBike) {
+    return (
+      <>
+        <style>{CSS}</style>
+        <div className="onboard">
+          <div className="onboard-logo">MOTO<span>TRACK</span></div>
+          <div className="onboard-sub">HOUR-BASED · KM · MILES · YOUR RULES</div>
+          <div className="onboard-cta">No bikes yet. Add your first machine to start tracking engine hours, distance, and service intervals.</div>
+          <button className="btn btn-p" style={{ fontSize:16, padding:"13px 32px" }} onClick={openAddBike}><Ic icon="Plus" size={16} style={{ marginRight:8 }} />Add Your First Bike</button>
+        </div>
+        {modal === "edit-bike" && <BikeModal form={form} setForm={setForm} editingBike={null} onSave={handleSaveBike} onClose={closeModal} />}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+
+        {/* ── HEADER ── */}
+        <div className="hdr">
+          <div className="hdr-row">
+            <div className="bike-switcher" onClick={() => setModal("bike-switcher")}>
+              <div className="bike-dot" style={{ background: activeBike.color ?? "#cc2200" }} />
+              <div className="bike-name-hdr">{activeBike.name}</div>
+              <div className="bike-caret"><Ic icon="ChevronDown" size={12} /></div>
+            </div>
+            <div className="hdr-right">
+              <button className={`mode-btn ${activeBike.ridingMode}`} onClick={toggleRidingMode}>
+                {activeBike.ridingMode === "normal"
+                  ? <><Ic icon="CircleDot" size={12} style={{ marginRight:4 }} />Normal</>
+                  : <><Ic icon="AlertTriangle" size={12} style={{ marginRight:4 }} />Aggr.</>}
+              </button>
+            </div>
+          </div>
+          <div className="hdr-sub">
+            <span>MOTOTRACK</span>
+            <span className="unit-badge">
+              {unit === "hours"
+                ? <Ic icon="Timer" size={10} style={{ marginRight:3 }} />
+                : <Ic icon="Navigation" size={10} style={{ marginRight:3 }} />}
+              {unitCfg.label}
+            </span>
+            {state.bikes.length > 1 && <span>{state.bikes.length} BIKES</span>}
+          </div>
+        </div>
+
+        {/* ── UNIT CONFIRMATION BANNER (migration path) ── */}
+        {activeBike && !activeBike.unitConfirmed && (
+          <div className="confirm-banner">
+            <div className="confirm-banner-icon"><Ic icon="AlertTriangle" size={18} color="var(--amb)" /></div>
+            <div className="confirm-banner-body">
+              <div className="confirm-banner-title">Confirm Tracking Unit</div>
+              <div className="confirm-banner-text">
+                Before logging sessions, confirm how <strong>{activeBike.name}</strong> tracks usage. This cannot be changed later.
+              </div>
+              <div className="confirm-banner-actions">
+                {Object.entries(TRACKING_UNITS).map(([key, cfg]) => (
+                  <button key={key} className="btn btn-amb" style={{ fontSize:12, padding:"6px 10px" }} onClick={() => confirmUnit(activeBike.id, key)}>
+                    <Ic icon={key === "hours" ? "Timer" : "Navigation"} size={12} style={{ marginRight:4 }} />{cfg.short.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONTENT ── */}
+        <div className="scroll">
+          {activeTab === "dash"    && <DashTab unit={unit} unitCfg={unitCfg} totalReading={totalReading} activeBike={activeBike} sessions={bikeSessions} taskStatuses={taskStatuses} overdueCount={overdueCount} dueSoonCount={dueSoonCount} totalSpent={totalSpent} canLog={canLogSession} openLogSession={openLogSession} openCompleteTask={openCompleteTask} expandedTask={expandedTask} setExpandedTask={setExpandedTask} setActiveTab={setActiveTab} onViewSession={openSessionDetail} latestSnapshot={latestSnapshot} canUpdateOdometer={canUpdateOdometer} onUpdateOdometer={openOdometerUpdate} />}
+          {activeTab === "track"   && <TrackTab unit={unit} unitCfg={unitCfg} taskStatuses={taskStatuses} expandedTask={expandedTask} setExpandedTask={setExpandedTask} openCompleteTask={openCompleteTask} cat={trackCat} setCat={setTrackCat} categories={trackCategories} />}
+          {activeTab === "manage"  && <ManageTab unit={unit} unitCfg={unitCfg} serviceDefs={bikeDefs} taskStatuses={taskStatuses} onAdd={openAddDef} onEdit={openEditDef} onDelete={handleDeleteDef} />}
+          {activeTab === "history" && <HistoryTab unit={unit} unitCfg={unitCfg} sessions={bikeSessions} initialReading={activeBike?.initialReading ?? 0} records={bikeRecords} defMap={Object.fromEntries(bikeDefs.map((d) => [d.id, d]))} totalSpent={totalSpent} filter={histFilter} setFilter={setHistFilter} view={histView} setView={setHistView} cats={["all", ...new Set(bikeDefs.map((d) => d.category.toLowerCase()))]} onDeleteLog={(r) => { setDeleteLogTarget(r); setModal("confirm-delete-log"); }} onViewSession={openSessionDetail} snapshots={bikeSnapshots} onDeleteSnapshot={handleDeleteSnapshot} canUpdateOdometer={canUpdateOdometer} onUpdateOdometer={openOdometerUpdate} />}
+          {activeTab === "preride" && <PreRideTab
+            categories={bikeClCategories}
+            items={bikeClItems}
+            checks={bikeChecks}
+            checkedCount={checkedCount}
+            enabledCount={enabledCount}
+            activeBike={activeBike}
+            onToggle={toggleCheck}
+            onReset={resetChecks}
+            onAddCategory={openAddCategory}
+            onEditCategory={openEditCategory}
+            onDeleteCategory={openDeleteCategory}
+            onReorderCategory={reorderCategory}
+            onAddItem={openAddItem}
+            onEditItem={openEditItem}
+            onDeleteItem={handleDeleteItem}
+            onToggleEnabled={handleToggleItemEnabled}
+            onReorderItem={reorderItem}
+          />}
+        </div>
+
+        {activeTab === "manage" && <button className="fab" onClick={openAddDef}><Ic icon="Plus" size={24} /></button>}
+
+        {/* ── NAV ── */}
+        <div className="nav">
+          {([
+            ["dash",    "Flag",       "DASH"],
+            ["track",   "Wrench",     "SERVICE"],
+            ["manage",  "Settings",   "MANAGE"],
+            ["history", "History",    "HISTORY"],
+            ["preride", "ListChecks", "CHECK"],
+          ]).map(([id, Icon, label]) => (
+            <button key={id} className={`nitem ${activeTab === id ? "active" : ""}`} onClick={() => setActiveTab(id)}>
+              <div className="nicon"><Ic icon={Icon} size={20} /></div>
+              <div className="nlabel">{label}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            MODALS
+        ══════════════════════════════════════════════════════════════════ */}
+
+        {/* ── Bike Switcher ── */}
+        {modal === "bike-switcher" && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal green" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle">Garage</div>
+              <div className="msub">{state.bikes.length} BIKE{state.bikes.length !== 1 ? "S" : ""} · TAP TO SWITCH</div>
+              {state.bikes.map((bike) => {
+                const reading  = bikeReadings[bike.id] ?? 0;
+                const bUnit    = bike.trackingUnit ?? "hours";
+                const bUnitCfg = TRACKING_UNITS[bUnit];
+                const isActive = bike.id === state.activeBikeId;
+                const bEnriched = enrichDefs(state.serviceDefs.filter((d) => d.bikeId === bike.id));
+                const bRecords  = state.serviceRecords.filter((r) => r.bikeId === bike.id);
+                const hasOverdue = bEnriched.some((def) => {
+                  try {
+                    return getNextDue(def, bRecords, reading, bike.ridingMode ?? "normal", bUnit).remaining <= 0;
+                  } catch { return false; }
+                });
+                return (
+                  <div key={bike.id} className={`bike-item ${isActive ? "active-bike" : ""}`} onClick={() => { switchBike(bike.id); closeModal(); }}>
+                    <div className="bike-item-dot" style={{ background: bike.color ?? "#cc2200" }} />
+                    <div className="bike-item-info">
+                      <div className="bike-item-name">{bike.name}</div>
+                      <div className="bike-item-meta">
+                        {[bike.year, bike.make, bike.model].filter(Boolean).join(" · ") || "No details"}
+                        <span style={{ marginLeft:6 }} className="unit-badge">
+                          <Ic icon={bUnit === "hours" ? "Timer" : "Navigation"} size={9} style={{ marginRight:2 }} />{bUnitCfg.short}
+                        </span>
+                        {hasOverdue && <span style={{ color:"var(--red2)", marginLeft:6 }}><Ic icon="AlertTriangle" size={10} style={{ marginRight:2 }} />OVERDUE</span>}
+                      </div>
+                    </div>
+                    <div className="bike-item-reading" style={{ color: isActive ? (bike.color ?? "var(--red2)") : "var(--txt2)" }}>
+                      {fmtShort(reading, bUnit)}
+                    </div>
+                    <div style={{ display:"flex", gap:5, flexShrink:0 }} onClick={(e) => e.stopPropagation()}>
+                      <button className="icon-btn edit" onClick={() => { closeModal(); openEditBike(bike); }}><Ic icon="Pencil" size={13} /></button>
+                      <button className="icon-btn del"  onClick={() => { closeModal(); stageDeleteBike(bike); }}><Ic icon="Trash2" size={13} /></button>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ display:"flex", gap:8, marginTop:14 }}>
+                <button className="btn btn-g" style={{ flex:1 }} onClick={closeModal}>Close</button>
+                <button className="btn btn-b" style={{ flex:1 }} onClick={() => { closeModal(); openAddBike(); }}><Ic icon="Plus" size={13} style={{ marginRight:4 }} />Add Bike</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Add / Edit Bike ── */}
+        {modal === "edit-bike" && (
+          <BikeModal form={form} setForm={setForm} editingBike={editingBike} onSave={handleSaveBike} onClose={closeModal} />
+        )}
+
+        {/* ── Confirm Delete Bike ── */}
+        {modal === "confirm-delete-bike" && deleteTarget?._isBike && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle"><Ic icon="Trash2" size={18} style={{ marginRight:8, verticalAlign:"middle" }} />Delete Bike?</div>
+              <div className="msub">{deleteTarget.name}</div>
+              <div className="mwarn">
+                This permanently removes:
+                <br/>• All riding sessions and reading history
+                <br/>• All service records and costs
+                <br/>• All service definitions
+                <br/><br/>This cannot be undone.
+                {state.bikes.length === 1 && <><br/><br/><strong>This is your only bike.</strong> The app will return to setup.</>}
+              </div>
+              <div className="field">
+                <label>Type <strong style={{ color:"var(--txt)", fontFamily:"var(--fm)" }}>{deleteTarget.name}</strong> to confirm</label>
+                <input type="text" placeholder={deleteTarget.name} value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} autoFocus />
+              </div>
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-d" style={{ flex:2 }} onClick={handleDeleteBike} disabled={deleteConfirmText !== deleteTarget.name}>Delete Everything</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Log Session — unit-aware ── */}
+        {modal === "log-session" && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle">Log Session</div>
+              <div className="msub">{activeBike.name.toUpperCase()} · <Ic icon={unit === "hours" ? "Timer" : "Navigation"} size={11} style={{ marginRight:2 }} />{unitCfg.label.toUpperCase()} · NOW: {fmtShort(totalReading, unit)}</div>
+
+              {/* MODE TOGGLE */}
+              <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+                {[["duration", "Timer", unit === "hours" ? "Duration" : "Distance"], ["final", "MapPin", "Final Reading"]].map(([m, Icon, label]) => (
+                  <button key={m} onClick={() => setLogMode(m)} style={{ flex:1, fontFamily:"var(--fm)", fontSize:11, padding:"7px 4px", borderRadius:3, border:"1px solid", borderColor: logMode===m?"var(--red)":"var(--bd)", background: logMode===m?"rgba(200,32,0,.1)":"var(--s2)", color: logMode===m?"var(--red2)":"var(--txt3)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                    <Ic icon={Icon} size={12} />{label}
+                  </button>
+                ))}
+              </div>
+
+              {/* TWIN INPUT — unit-aware labels */}
+              <div className="twin">
+                <div className={`tbox ${startBad ? "err" : ""}`}>
+                  <span className="tbox-label">{unitCfg.sessionStartLabel}</span>
+                  <input className="tinput" type="number" step={unitCfg.inputStep} min={minStart} value={form.startReading} onChange={(e) => setForm((f) => ({ ...f, startReading: e.target.value }))} style={{ color: startBad ? "var(--red2)" : "var(--txt)" }} autoFocus />
+                  <div className="tunit-label">{unitCfg.short}</div>
+                </div>
+                <div style={{ textAlign:"center", color:"var(--txt3)", fontSize:16 }}>→</div>
+                {logMode === "duration" ? (
+                  <div className={`tbox ${sessionCalc ? "valid" : ""}`}>
+                    <span className="tbox-label">{unitCfg.sessionDurationLabel} ({unitCfg.short})</span>
+                    <input className="tinput" type="number" step={unitCfg.inputStep} min={unitCfg.inputStep} placeholder="0" value={form.durationReading} onChange={(e) => setForm((f) => ({ ...f, durationReading: e.target.value }))} style={{ color: sessionCalc ? "#4ade80" : "var(--txt)" }} />
+                    <div className="tunit-label">{unit === "hours" ? "ridden" : "traveled"}</div>
+                  </div>
+                ) : (
+                  <div className={`tbox ${endBad ? "err" : sessionCalc ? "valid" : ""}`}>
+                    <span className="tbox-label">{unitCfg.sessionFinalLabel} ({unitCfg.short})</span>
+                    <input className="tinput" type="number" step={unitCfg.inputStep} placeholder="end" value={form.endReading} onChange={(e) => setForm((f) => ({ ...f, endReading: e.target.value }))} style={{ color: endBad ? "var(--red2)" : sessionCalc ? "#4ade80" : "var(--txt)" }} />
+                    <div className="tunit-label">{unitCfg.short}</div>
+                  </div>
+                )}
+              </div>
+
+              {startBad && <div className="mwarn" style={{ marginTop:-4, marginBottom:10 }}><Ic icon="AlertTriangle" size={13} style={{ marginRight:5 }} />Start cannot be less than <strong>{fmtShort(minStart, unit)}</strong>. Reading never goes backwards.</div>}
+              {endBad   && <div className="mwarn" style={{ marginTop:-4, marginBottom:10 }}><Ic icon="AlertTriangle" size={13} style={{ marginRight:5 }} />Final reading must exceed start.</div>}
+
+              {/* RESULT */}
+              <div className={`cresult ${endBad || startBad ? "e" : sessionCalc ? "v" : "n"}`}>
+                <div>
+                  <div className="clbl">New total {unitCfg.odometerLabel}</div>
+                  {sessionCalc && <div style={{ fontFamily:"var(--fm)", fontSize:11, color:"var(--txt3)", marginTop:2 }}>→ <span style={{ color:"#4ade80" }}>{fmtShort(sessionCalc.end, unit)}</span></div>}
+                </div>
+                <div className="cval" style={{ color: !sessionCalc ? "var(--txt3)" : "#4ade80" }}>
+                  {!sessionCalc ? "–" : logMode === "duration" ? fmtShort(sessionCalc.end, unit) : `+${fmtShort(sessionCalc.duration, unit)}`}
+                </div>
+              </div>
+
+              <div className="field"><label>Date</label><input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></div>
+              <div className="field">
+                <label>Ride Title</label>
+                <input className={`title-field ${form.title === DEFAULT_TITLE ? "ph" : ""}`} type="text" maxLength={60} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} onFocus={(e) => { if (e.target.value === DEFAULT_TITLE) setForm((f) => ({ ...f, title: "" })); }} onBlur={(e) => { if (!e.target.value.trim()) setForm((f) => ({ ...f, title: DEFAULT_TITLE })); }} />
+              </div>
+              <div className="field"><label>Notes (optional)</label><textarea rows={3} placeholder="Conditions, route, how the bike felt..." value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></div>
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-p" style={{ flex:2 }} onClick={handleLogSession} disabled={!sessionValid}>Save Session</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Complete Task — shows unit in subtitle ── */}
+        {modal === "complete-task" && selectedTask && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle"><ServiceIcon icon={selectedTask.icon} size={18} style={{ marginRight:8 }} />{selectedTask.name}</div>
+              <div className="msub">MARK DONE AT {fmtShort(totalReading, unit).toUpperCase()} · {activeBike.name.toUpperCase()}</div>
+              <div className="field"><label>Date</label><input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></div>
+              <div className="field"><label>Parts Used</label><input type="text" placeholder="e.g. filter, oil, chain lube…" value={form.parts} onChange={(e) => setForm((f) => ({ ...f, parts: e.target.value }))} /></div>
+              <div className="field"><label>Cost ($)</label><input type="number" step="0.01" min="0" placeholder="0.00" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} /></div>
+              <div className="field"><label>Notes</label><textarea rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></div>
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-p" style={{ flex:2 }} onClick={handleCompleteTask}><Ic icon="Check" size={14} style={{ marginRight:5 }} />Mark Done</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Add / Edit Service Def — unit-aware labels ── */}
+        {modal === "edit-def" && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal blue" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle">{editingDef ? <><Ic icon="Pencil" size={16} style={{ marginRight:8 }} />Edit Service</> : <><Ic icon="Plus" size={16} style={{ marginRight:8 }} />Add Service</>}</div>
+              <div className="msub">{activeBike.name.toUpperCase()} · <Ic icon={unit === "hours" ? "Timer" : "Navigation"} size={11} style={{ marginRight:2 }} />INTERVALS IN {unitCfg.label.toUpperCase()}</div>
+              {editingDef?.isPreset && <div className="minfo"><Ic icon="Info" size={13} style={{ marginRight:6 }} />Factory preset. Editing changes intervals but does NOT modify service history.</div>}
+              <div className="field">
+                <label>Service Name *</label>
+                <input type="text" maxLength={60} placeholder="e.g. Fork Oil Change" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
+              </div>
+              <div className="field-row">
+                <div className="field"><label>Category</label><select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                <div className="field"><label>Icon (emoji)</label><input type="text" maxLength={4} placeholder="🔧" value={form.icon} onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))} /></div>
+              </div>
+              {/* UNIT-AWARE INTERVAL LABELS */}
+              <div className="field-row">
+                <div className="field">
+                  <label>Normal Interval ({unitCfg.short}) *</label>
+                  <input type="number" step={unitCfg.inputStep} min="1" placeholder={unitCfg.intervalPlaceholderNormal} value={form.intervalNormal} onChange={(e) => setForm((f) => ({ ...f, intervalNormal: e.target.value }))} />
+                </div>
+                <div className="field">
+                  <label>Aggressive ({unitCfg.short}) *</label>
+                  <input type="number" step={unitCfg.inputStep} min="1" placeholder={unitCfg.intervalPlaceholderAggressive} value={form.intervalAggressive} onChange={(e) => setForm((f) => ({ ...f, intervalAggressive: e.target.value }))} />
+                </div>
+              </div>
+              {/* SANITY WARNING */}
+              {defIntervalSanityWarn && (
+                <div className="mwarn" style={{ marginTop:-6, marginBottom:12 }}><Ic icon="AlertTriangle" size={13} style={{ marginRight:5 }} />{defIntervalSanityWarn}</div>
+              )}
+              <div className="field">
+                <label>First Service At ({unitCfg.short}) — optional</label>
+                <input type="number" step={unitCfg.inputStep} min="1" placeholder={`Leave blank to use interval`} value={form.firstServiceAt} onChange={(e) => setForm((f) => ({ ...f, firstServiceAt: e.target.value }))} />
+                <div className="field-hint">e.g. break-in service at a specific reading</div>
+              </div>
+              <div className="field"><label>Notes (optional)</label><textarea rows={2} placeholder="Spec, fluid type, torque values…" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></div>
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-b" style={{ flex:2 }} onClick={handleSaveDef} disabled={!defFormValid}>{editingDef ? "Save Changes" : "Add Service"}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Confirm Delete Log ── */}
+        {modal === "confirm-delete-log" && deleteLogTarget && (
+          <div className="moverlay" onClick={() => { setDeleteLogTarget(null); setModal(null); }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle"><Ic icon="Trash2" size={18} style={{ marginRight:8 }} />Delete Record?</div>
+              <div className="msub">{bikeDefs.find((d) => d.id === deleteLogTarget.defId)?.name} · {deleteLogTarget.date} · at {fmtShort(deleteLogTarget.completedAt, unit)}</div>
+              <div className="mwarn">Deleting this record will recalculate future intervals.</div>
+              {logDeleteImpact.length > 0 ? (
+                logDeleteImpact.map(({ def, before, after, statusBefore, statusAfter, worse }) => (
+                  <div key={def.id} className={`impact-row ${worse ? "worse" : "better"}`}>
+                    <div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", gap:6 }}><ServiceIcon icon={def.icon} size={14} />{def.name}</div>
+                    <div style={{ fontFamily:"var(--fm)", fontSize:11, textAlign:"right" }}>
+                      <span style={{ color:"var(--txt3)", textDecoration:"line-through" }}>{fmtShort(before.nextDue, unit)}</span>
+                      <span style={{ marginLeft:6, color: worse ? "var(--amb)" : "#4ade80" }}>→ {fmtShort(after.nextDue, unit)}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ fontFamily:"var(--fm)", fontSize:12, color:"var(--grn)", padding:"4px 0 12px", display:"flex", alignItems:"center", gap:5 }}><Ic icon="Check" size={13} />No other intervals affected</div>
+              )}
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={() => { setDeleteLogTarget(null); setModal(null); }}>Cancel</button>
+                <button className="btn btn-d" style={{ flex:2 }} onClick={handleDeleteLog}>Delete & Recalculate</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Ride Detail ── */}
+        {viewSession && (() => {
+          const s = viewSession;
+          const initialR = activeBike?.initialReading ?? 0;
+          const absStart = roundForUnit(initialR + s.startReading, unit);
+          const absEnd   = roundForUnit(initialR + sessionEnd(s), unit);
+          const isLast   = bikeSessions[bikeSessions.length - 1]?.id === s.id;
+          const editDur  = parseFloat(form.durationReading);
+          const editDurValid = !isNaN(editDur) && editDur > 0;
+          return (
+            <div className="moverlay" onClick={closeSessionDetail}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                {editingSession ? (
+                  <input className={`title-field ${form.title === DEFAULT_TITLE ? "ph" : ""}`} type="text" maxLength={60} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} onFocus={(e) => { if (e.target.value === DEFAULT_TITLE) setForm((f) => ({ ...f, title: "" })); }} onBlur={(e) => { if (!e.target.value.trim()) setForm((f) => ({ ...f, title: DEFAULT_TITLE })); }} style={{ marginBottom:6, fontSize:20 }} autoFocus />
+                ) : <div className="rdetail-title">{s.title || DEFAULT_TITLE}</div>}
+                <div className="rdetail-date">
+                  {editingSession
+                    ? <input style={{ background:"var(--s2)", border:"1px solid var(--bd)", borderRadius:3, color:"var(--txt)", fontFamily:"var(--fm)", fontSize:12, padding:"4px 8px", outline:"none" }} type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+                    : <div style={{ display:"flex", alignItems:"center", gap:6, fontFamily:"var(--fm)", fontSize:12, color:"var(--txt3)" }}><Ic icon="Calendar" size={12} />{s.date} · <Ic icon={unit === "hours" ? "Timer" : "Navigation"} size={12} />{unitCfg.label}</div>}
+                </div>
+                <div className="rdetail-grid">
+                  <div className="rdetail-cell">
+                    <div className="rdetail-cell-label">{unitCfg.sessionStartLabel}</div>
+                    <div className="rdetail-cell-val">{fmtShort(absStart, unit)}</div>
+                  </div>
+                  <div className="rdetail-cell">
+                    <div className="rdetail-cell-label">End</div>
+                    <div className="rdetail-cell-val">{fmtShort(absEnd, unit)}</div>
+                  </div>
+                  <div className="rdetail-cell" style={{ borderColor: editingSession ? "var(--red)" : "var(--bd)" }}>
+                    <div className="rdetail-cell-label">{unitCfg.sessionDurationLabel}</div>
+                    {editingSession ? (
+                      <input style={{ background:"transparent", border:"none", outline:"none", fontFamily:"var(--fd)", fontSize:16, fontWeight:700, color: editDurValid ? "var(--txt)" : "var(--red2)", width:"100%", padding:0, WebkitAppearance:"none" }} type="number" step={unitCfg.inputStep} min={unitCfg.inputStep} value={form.durationReading} onChange={(e) => setForm((f) => ({ ...f, durationReading: e.target.value }))} />
+                    ) : (
+                      <div className="rdetail-cell-val" style={{ color:"var(--txt2)" }}>+{fmtShort(s.durationReading, unit)}</div>
+                    )}
+                  </div>
+                </div>
+                {editingSession && !isLast && <div className="mwarn" style={{ marginBottom:12 }}><Ic icon="AlertTriangle" size={13} style={{ marginRight:5 }} />Changing duration will re-anchor all subsequent sessions.</div>}
+                <div className="rdetail-notes-label">Ride Notes</div>
+                {editingSession ? (
+                  <textarea rows={4} style={{ width:"100%", background:"var(--s2)", border:"1px solid var(--bd)", borderRadius:4, color:"var(--txt)", fontFamily:"var(--fb)", fontSize:14, padding:"10px 12px", outline:"none", resize:"none", lineHeight:1.6 }} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+                ) : s.notes?.trim() ? (
+                  <div className="rdetail-notes-body">{s.notes}</div>
+                ) : (
+                  <div className="rdetail-empty">No ride notes recorded.</div>
+                )}
+                <div className="rdetail-actions">
+                  {editingSession ? (
+                    <>
+                      <button className="btn btn-s" style={{ flex:1 }} onClick={() => { setEditingSession(false); setForm({ title: s.title || DEFAULT_TITLE, notes: s.notes || "", date: s.date, durationReading: String(s.durationReading) }); }}>Cancel</button>
+                      <button className="btn btn-p" style={{ flex:2 }} onClick={handleSaveSessionEdit} disabled={!editDurValid}>Save Changes</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn btn-d" style={{ flex:1 }} onClick={() => handleDeleteSession(s)}><Ic icon="Trash2" size={14} /></button>
+                      <button className="btn btn-g" style={{ flex:1 }} onClick={() => setEditingSession(true)}><Ic icon="Pencil" size={13} style={{ marginRight:4 }} />Edit</button>
+                      <button className="btn btn-s" style={{ flex:1 }} onClick={closeSessionDetail}>Close</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
+
+        {/* ── Odometer Update Modal (km/mi bikes only) ── */}
+        {modal === "odometer-update" && canUpdateOdometer && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal green" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle"><Ic icon="Navigation" size={18} style={{ marginRight:8 }} />Update Odometer</div>
+              <div className="msub">{activeBike.name.toUpperCase()} · {unitCfg.label.toUpperCase()}</div>
+
+              <div className="odo-current-row">
+                <div>
+                  <div className="odo-current-label">Current {unitCfg.odometerLabel}</div>
+                  {latestSnapshot && (
+                    <div className="odo-last-updated">
+                      Last updated {timeAgo(latestSnapshot.createdAt)} · {latestSnapshot.source}
+                    </div>
+                  )}
+                </div>
+                <div className="odo-current-val" style={{ color: activeBike.color ?? "var(--red2)" }}>
+                  {fmtShort(totalReading, unit)}
+                </div>
+              </div>
+
+              <div className="field">
+                <label>New {unitCfg.odometerLabel} Reading</label>
+                <div className="odo-input-wrap">
+                  <input
+                    className={`odo-input${odoError ? " err" : ""}`}
+                    type="number"
+                    step={unitCfg.inputStep}
+                    min={odoFloor}
+                    placeholder={String(totalReading)}
+                    value={form.odometer}
+                    onChange={(e) => setForm((f) => ({ ...f, odometer: e.target.value }))}
+                    autoFocus
+                  />
+                  <span className="odo-unit-suffix">{unitCfg.short}</span>
+                </div>
+                {odoDelta !== null && !odoError && (
+                  <div className="odo-delta">+{fmtShort(odoDelta, unit)} from current reading</div>
+                )}
+                {odoUnchanged && (
+                  <div style={{ fontFamily:"var(--fm)", fontSize:11, color:"var(--txt3)", marginTop:4 }}>
+                    Same as current — nothing will be saved.
+                  </div>
+                )}
+                {odoError && <div className="mwarn" style={{ marginTop:8, marginBottom:0 }}><Ic icon="AlertTriangle" size={13} style={{ marginRight:5 }} />{odoError}</div>}
+              </div>
+
+              <div className="field">
+                <label>Date</label>
+                <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+                <div className="field-hint">When did you check the odometer?</div>
+              </div>
+
+              <div className="minfo" style={{ marginBottom:14 }}>
+                <Ic icon="Info" size={13} style={{ marginRight:6 }} />This updates service calculations immediately. Your ride sessions are not affected.
+              </div>
+
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-grn" style={{ flex:2 }} onClick={handleSaveOdometer} disabled={!odoValid || !!odoError}>
+                  Save Odometer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Checklist: Add / Edit Category ── */}
+        {modal === "cl-cat" && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal green" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle">{clEditingCat ? <><Ic icon="Pencil" size={16} style={{ marginRight:8 }} />Edit Category</> : <><Ic icon="Plus" size={16} style={{ marginRight:8 }} />New Category</>}</div>
+              <div className="msub">{activeBike.name.toUpperCase()} · CHECKLIST</div>
+              <div className="field">
+                <label>Category Name *</label>
+                <input type="text" maxLength={40} placeholder="e.g. Gear, Tools, Electronics…" value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
+              </div>
+              <div className="field">
+                <label>Icon</label>
+                <div className="cl-emoji-grid">
+                  {[
+                    ["🏍", "Bike"],     ["🛵", "Motorbike"],     ["🔧", "Wrench"],  ["🪛", "Wrench"],
+                    ["🔩", "Bolt"],     ["⛓",  "Link2"],    ["🎽", "ShirtIcon"],["🥾", "Backpack"],
+                    ["🧤", "Shield"],   ["🪖", "HardHat"],  ["📷", "Camera"],  ["🎥", "Camera"],
+                    ["📍", "MapPin"],   ["⛺", "Tent"],      ["☕", "Coffee"],  ["🛠", "Hammer"],
+                    ["🧰", "Package"],  ["⛽", "Fuel"],      ["🗺",  "Map"],    ["💡", "Lightbulb"],
+                  ].map(([emoji, IconComp]) => (
+                    <div key={emoji} className={`cl-emoji-opt${form.icon === emoji ? " selected" : ""}`} onClick={() => setForm((f) => ({ ...f, icon: emoji }))}>
+                      <Ic icon={IconComp} size={20} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-grn" style={{ flex:2 }} onClick={handleSaveCategory} disabled={!form.name?.trim()}>
+                  {clEditingCat ? "Save" : "Add Category"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Checklist: Confirm Delete Category ── */}
+        {modal === "cl-del-cat" && clEditingCat && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle"><Ic icon="Trash2" size={18} style={{ marginRight:8 }} />Delete Category?</div>
+              <div className="msub"><CatIcon icon={clEditingCat.icon} size={15} style={{ marginRight:5 }} />{clEditingCat.name}</div>
+              <div className="mwarn">
+                This will permanently delete <strong>{clEditingCat.name}</strong> and all its checklist items. This cannot be undone.
+              </div>
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-d" style={{ flex:2 }} onClick={handleDeleteCategory}>Delete Category</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Checklist: Add / Edit Item ── */}
+        {modal === "cl-item" && (
+          <div className="moverlay" onClick={closeModal}>
+            <div className="modal green" onClick={(e) => e.stopPropagation()}>
+              <div className="mtitle">{form._itemId ? <><Ic icon="Pencil" size={16} style={{ marginRight:8 }} />Edit Item</> : <><Ic icon="Plus" size={16} style={{ marginRight:8 }} />Add Item</>}</div>
+              <div className="msub">
+                {bikeClCategories.find((c) => c.id === form.categoryId)?.name ?? "Category"} · {activeBike.name.toUpperCase()}
+              </div>
+              <div className="field">
+                <label>Item Name *</label>
+                <input type="text" maxLength={60} placeholder="e.g. Chain tension, GoPro charged…" value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
+              </div>
+              <div className="field">
+                <label>Category</label>
+                <select value={form.categoryId ?? ""} onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}>
+                  {bikeClCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="mactions">
+                <button className="btn btn-s" style={{ flex:1 }} onClick={closeModal}>Cancel</button>
+                <button className="btn btn-grn" style={{ flex:2 }} onClick={handleSaveItem} disabled={!form.name?.trim()}>
+                  {form._itemId ? "Save" : "Add Item"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </>
+  );
+}
+
+
+function BikeModal({ form, setForm, editingBike, onSave, onClose }) {
+  const selectedUnit = form.trackingUnit ?? "hours";
+  const selectedUnitCfg = TRACKING_UNITS[selectedUnit];
+
+  // Auto-suggest template when unit changes
+  const handleUnitSelect = (unitKey) => {
+    let preload = "generic_hours";
+    if (unitKey === "km") preload = "generic_km";
+    if (unitKey === "mi") preload = "generic_mi";
+    setForm((f) => ({ ...f, trackingUnit: unitKey, preloadSchedule: preload }));
+  };
+
+  const bikeFormValid = !!form.name?.trim() && (editingBike || !!form.trackingUnit);
+
+  return (
+    <div className="moverlay" onClick={onClose}>
+      <div className="modal green" onClick={(e) => e.stopPropagation()}>
+        <div className="mtitle">{editingBike ? <><Ic icon="Pencil" size={16} style={{ marginRight:8 }} />Edit Bike</> : <><Ic icon="Plus" size={16} style={{ marginRight:8 }} />Add Bike</>}</div>
+        <div className="msub">{editingBike ? `Editing: ${editingBike.name}` : "SET UP YOUR MACHINE"}</div>
+
+        <div className="field">
+          <label>Bike Name *</label>
+          <input type="text" maxLength={40} placeholder="CRF300F, My KTM, Track Bike…" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
+        </div>
+
+        <div className="field-row">
+          <div className="field">
+            <label>Make</label>
+            <select value={form.make ?? ""} onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))}>
+              <option value="">Select make</option>
+              {POPULAR_MAKES.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>Year</label>
+            <input type="number" min="1990" max="2030" placeholder={new Date().getFullYear()} value={form.year ?? ""} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="field">
+          <label>Model</label>
+          <input type="text" maxLength={40} placeholder="CRF300F, YZ250X, V-Strom 650…" value={form.model ?? ""} onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} />
+        </div>
+
+        {/* ── TRACKING UNIT — only on ADD ── */}
+        {!editingBike ? (
+          <div className="field">
+            <label>Tracking Unit *</label>
+            <div className="unit-options">
+              {Object.entries(TRACKING_UNITS).map(([key, cfg]) => (
+                <div key={key} className={`unit-option ${selectedUnit === key ? "selected" : ""}`} onClick={() => handleUnitSelect(key)}>
+                  <div className="unit-option-icon"><Ic icon={key === "hours" ? "Timer" : "Navigation"} size={18} /></div>
+                  <div className="unit-option-label">{key === "hours" ? "Hours" : cfg.label}</div>
+                  <div className="unit-option-short">{cfg.short}</div>
+                </div>
+              ))}
+            </div>
+            <div className="unit-desc">{selectedUnitCfg?.description}</div>
+            <div className="field-hint" style={{ marginTop:6 }}><Ic icon="AlertTriangle" size={11} style={{ marginRight:4 }} />Cannot be changed after adding the bike.</div>
+          </div>
+        ) : (
+          // EDIT MODE: show unit as read-only locked display
+          <div style={{ marginBottom:13 }}>
+            <div style={{ fontFamily:"var(--fd)", fontSize:11, fontWeight:600, letterSpacing:1, textTransform:"uppercase", color:"var(--txt3)", marginBottom:5 }}>Tracking Unit</div>
+            <div className="unit-locked">
+              <div className="unit-locked-icon"><Ic icon={editingBike.trackingUnit === "hours" ? "Timer" : "Navigation"} size={20} /></div>
+              <div className="unit-locked-text">
+                <div className="unit-locked-name">{TRACKING_UNITS[editingBike.trackingUnit]?.label ?? editingBike.trackingUnit}</div>
+                <div className="unit-locked-note"><Ic icon="Lock" size={11} style={{ marginRight:4 }} />Cannot be changed after bike creation</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="field">
+          <label>Current {!editingBike ? (selectedUnitCfg?.odometerLabel ?? "Reading") : (TRACKING_UNITS[editingBike?.trackingUnit]?.odometerLabel ?? "Reading")} Reading</label>
+          <input type="number" step={!editingBike ? (selectedUnitCfg?.inputStep ?? 0.1) : (TRACKING_UNITS[editingBike?.trackingUnit]?.inputStep ?? 0.1)} min="0" placeholder="0 — leave blank if new" value={form.initialReading ?? ""} onChange={(e) => setForm((f) => ({ ...f, initialReading: e.target.value }))} disabled={!!editingBike} />
+          {editingBike && <div className="field-hint"><Ic icon="Lock" size={11} style={{ marginRight:4 }} />Cannot be changed — part of the reading chain</div>}
+          {!editingBike && <div className="field-hint">Enter your current odometer/hourmeter value if the bike has existing readings</div>}
+        </div>
+
+        <div className="field">
+          <label>Bike Color</label>
+          <div className="color-picker-row">
+            {BIKE_COLORS.map((c) => (
+              <div key={c} className={`color-swatch ${form.color === c ? "selected" : ""}`} style={{ background: c }} onClick={() => setForm((f) => ({ ...f, color: c }))} />
+            ))}
+          </div>
+        </div>
+
+        {!editingBike && (
+          <div className="field">
+            <label>Service Schedule Template</label>
+            <select value={form.preloadSchedule ?? "none"} onChange={(e) => setForm((f) => ({ ...f, preloadSchedule: e.target.value }))}>
+              <option value="generic_hours" disabled={selectedUnit !== "hours"}>Generic Off-Road (hours)</option>
+              <option value="generic_km"    disabled={selectedUnit !== "km"}>Generic Street/Adventure (km)</option>
+              <option value="generic_mi"    disabled={selectedUnit !== "mi"}>Generic Street/Adventure (mi)</option>
+              <option value="crf300f"       disabled={selectedUnit !== "hours"}>Honda CRF300F — Full OEM (hours)</option>
+              <option value="vstrom650"     disabled={selectedUnit !== "km"}>Suzuki V-Strom 650 — Full OEM (km)</option>
+              <option value="none">Empty — I'll add services manually</option>
+            </select>
+            <div className="field-hint">Templates use {selectedUnitCfg?.label ?? "the selected unit"} intervals</div>
+          </div>
+        )}
+
+        <div className="mactions">
+          <button className="btn btn-s" style={{ flex:1 }} onClick={onClose}>Cancel</button>
+          <button className="btn btn-grn" style={{ flex:2 }} onClick={onSave} disabled={!bikeFormValid}>
+            {editingBike ? "Save Changes" : "Add Bike"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// DASHBOARD
+// =============================================================================
+function DashTab({ unit, unitCfg, totalReading, activeBike, sessions, taskStatuses, overdueCount, dueSoonCount, totalSpent, canLog, openLogSession, openCompleteTask, expandedTask, setExpandedTask, setActiveTab, onViewSession, latestSnapshot, canUpdateOdometer, onUpdateOdometer }) {
+  const recent = [...sessions].reverse().slice(0, 3);
+  const initialR = activeBike?.initialReading ?? 0;
+
+  const mainInt  = unit === "km" || unit === "mi" ? Math.floor(totalReading).toLocaleString() : Math.floor(totalReading);
+  const mainDec  = unit === "hours" ? `.${Math.round((totalReading % 1) * 10)}` : "";
+
+  return (
+    <>
+      <div className="hcard">
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div className="hcard-label">{unitCfg.odometerLabel}</div>
+            <div className="hcard-val">
+              {mainInt}<span>{mainDec}{unit !== "hours" ? ` ${unitCfg.short}` : "h"}</span>
+            </div>
+            {/* LAST UPDATED — only when a manual snapshot exists */}
+            {latestSnapshot && latestSnapshot.source === "manual" && (
+              <div style={{ fontFamily:"var(--fm)", fontSize:10, color:"var(--txt3)", marginTop:4 }}>
+                Updated {timeAgo(latestSnapshot.createdAt)}
+              </div>
+            )}
+          </div>
+          <div style={{ textAlign:"right", flexShrink:0, maxWidth:"45%" }}>
+            <div style={{ fontFamily:"var(--fd)", fontSize:12, color:"var(--txt3)", marginBottom:2 }}>{activeBike.year ?? ""} {activeBike.make ?? ""}</div>
+            <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:700, color: activeBike.color ?? "var(--red2)" }}>{activeBike.model || activeBike.name}</div>
+            <div className="unit-badge" style={{ display:"inline-block", marginTop:4 }}>
+              <Ic icon={unit === "hours" ? "Timer" : "Navigation"} size={10} style={{ marginRight:3 }} />{unitCfg.label}
+            </div>
+          </div>
+        </div>
+        <div className="hcard-meta">{sessions.length} sessions · {activeBike.ridingMode === "aggressive" ? <><Ic icon="AlertTriangle" size={11} style={{ marginRight:3 }} />Aggressive intervals</> : "Normal intervals"}</div>
+        <div className="hcard-actions">
+          <button className="btn btn-p" onClick={openLogSession} disabled={!canLog}>+ Log Session</button>
+          {/* UPDATE ODOMETER — distance bikes only */}
+          {canUpdateOdometer && (
+            <button className="btn btn-b" onClick={onUpdateOdometer}><Ic icon="Navigation" size={13} style={{ marginRight:4 }} />Odometer</button>
+          )}
+          <button className="btn btn-s" onClick={() => setActiveTab("track")}>Service</button>
+        </div>
+      </div>
+
+      {overdueCount > 0 && <div className="alert alert-ov"><Ic icon="AlertOctagon" size={16} style={{ marginRight:8, flexShrink:0 }} /><span>{overdueCount} item{overdueCount > 1 ? "s" : ""} OVERDUE</span></div>}
+      {dueSoonCount > 0 && overdueCount === 0 && <div className="alert alert-ds"><Ic icon="AlertTriangle" size={16} style={{ marginRight:8, flexShrink:0 }} /><span>{dueSoonCount} item{dueSoonCount > 1 ? "s" : ""} due within {fmtShort(unitCfg.dueSoonThreshold, unit)}</span></div>}
+
+      <div className="sec">
+        <div className="sec-title">Overview</div>
+        <div className="srow2">
+          <div className="sbox"><div className="slabel">Overdue</div><div className="sval" style={{ color: overdueCount > 0 ? "var(--red2)" : "var(--txt2)" }}>{overdueCount}</div></div>
+          <div className="sbox"><div className="slabel">Due Soon</div><div className="sval" style={{ color: dueSoonCount > 0 ? "var(--amb)" : "var(--txt2)" }}>{dueSoonCount}</div></div>
+          <div className="sbox"><div className="slabel">Next Up</div><div style={{ fontFamily:"var(--fd)", fontSize:13, fontWeight:700, paddingTop:2 }}>{taskStatuses[0]?.name?.split(" ")[0] ?? "–"}</div></div>
+          <div className="sbox"><div className="slabel">Total Spent</div><div className="sval" style={{ fontSize:18, color:"var(--grn)" }}>${totalSpent.toFixed(0)}</div></div>
+        </div>
+      </div>
+
+      <div className="sec" style={{ paddingTop:0 }}>
+        <div className="sec-title">Priority Items</div>
+        {taskStatuses.slice(0, 5).map((t) => <TaskCard key={t.id} task={t} unit={unit} unitCfg={unitCfg} expanded={expandedTask === t.id} onToggle={() => setExpandedTask(expandedTask === t.id ? null : t.id)} openCompleteTask={openCompleteTask} />)}
+        {taskStatuses.length > 5 && <button className="btn btn-g" style={{ width:"100%", marginTop:4 }} onClick={() => setActiveTab("track")}>View All {taskStatuses.length} Services →</button>}
+        {taskStatuses.length === 0 && <div className="empty">No services defined.<br/>Go to Manage to add services.</div>}
+      </div>
+
+      {recent.length > 0 && (
+        <div className="sec" style={{ paddingTop:0 }}>
+          <div className="sec-title">Recent Sessions</div>
+          {recent.map((s) => {
+            const absStart = roundForUnit(initialR + s.startReading, unit);
+            const absEnd   = roundForUnit(initialR + sessionEnd(s), unit);
+            return (
+              <div key={s.id} style={{ background:"var(--s1)", border:"1px solid var(--bd)", borderRadius:"var(--rad)", padding:"10px 12px", marginBottom:5, display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }} onClick={() => onViewSession(s)}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontFamily:"var(--fd)", fontSize:14, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{s.title || DEFAULT_TITLE}{s.notes?.trim() && <span style={{ marginLeft:6 }}><Ic icon="NotebookPen" size={11} /></span>}</div>
+                  <div style={{ fontFamily:"var(--fm)", fontSize:11, color:"var(--txt3)", marginTop:2 }}>{s.date} · {fmtShort(absStart, unit)} → {fmtShort(absEnd, unit)}</div>
+                </div>
+                <div style={{ fontFamily:"var(--fd)", fontSize:16, fontWeight:700, color:"var(--txt2)", flexShrink:0, marginLeft:8 }}>+{fmtShort(s.durationReading, unit)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+// =============================================================================
+// TRACK TAB
+// =============================================================================
+function TrackTab({ unit, unitCfg, taskStatuses, expandedTask, setExpandedTask, openCompleteTask, cat, setCat, categories }) {
+  const filtered = taskStatuses.filter((t) => cat === "All" || t.category === cat);
+  return (
+    <div className="sec">
+      <div className="sec-title" style={{ display:"flex", alignItems:"center", gap:7 }}>
+        Service Schedule · <Ic icon={unit === "hours" ? "Timer" : "Navigation"} size={14} />{unitCfg.label}
+      </div>
+      <div className="pill-row">{categories.map((c) => <button key={c} className={`pill ${cat === c ? "on" : "off"}`} onClick={() => setCat(c)}>{c}</button>)}</div>
+      {filtered.length === 0 && <div className="empty">No services in this category</div>}
+      {filtered.map((t) => <TaskCard key={t.id} task={t} unit={unit} unitCfg={unitCfg} expanded={expandedTask === t.id} onToggle={() => setExpandedTask(expandedTask === t.id ? null : t.id)} openCompleteTask={openCompleteTask} />)}
+    </div>
+  );
+}
+
+// =============================================================================
+// TASK CARD — unit-aware display
+// =============================================================================
+function TaskCard({ task, unit, unitCfg, expanded, onToggle, openCompleteTask }) {
+  const span = task.nextDue - Math.max(task.lastAt ?? 0, 0);
+  const pct  = span > 0 ? Math.max(0, Math.min(100, ((span - Math.max(task.remaining, 0)) / span) * 100)) : 100;
+  const intervalLabel = task.dependsOnKey
+    ? `Every ${task.dependsOnCount}× parent`
+    : task.intervalNormal
+      ? `Every ${fmtShort(task.intervalNormal, unit)} / ${fmtShort(task.intervalAggressive, unit)} aggr.`
+      : "–";
+  const remLabel = task.remaining <= 0
+    ? `${fmtShort(Math.abs(task.remaining), unit)} over`
+    : fmtShort(task.remaining, unit);
+
+  return (
+    <div className={`tcard ${task.status}`}>
+      <div className="thead" onClick={onToggle}>
+        <div className="ticon"><ServiceIcon icon={task.icon} size={20} /></div>
+        <div className="tinfo">
+          <div className="tname">{task.name}</div>
+          <div className="tmeta">
+            {task.lastAt !== null ? `Last: ${fmtShort(task.lastAt, unit)}` : "Never serviced"} · Due: {fmtShort(task.nextDue, unit)}
+          </div>
+          <div className="pbar" title={`${Math.round(pct)}% through service interval`}><div className={`pfill ${task.status}`} style={{ width:`${pct}%` }} /></div>
+        </div>
+        <div className="tstatus">
+          <span className={`sbadge ${task.status}`}>{task.status === "overdue" ? "OVERDUE" : task.status === "due-soon" ? "SOON" : "OK"}</span>
+          <div className={`rem-val ${task.status}`}>{remLabel}</div>
+        </div>
+      </div>
+      {expanded && (
+        <div className="texpand">
+          {task.notes && <div className="tnotes">{task.notes}</div>}
+          <div className="trow"><span>Interval</span><strong>{intervalLabel}</strong></div>
+          <div className="trow"><span>Category</span><strong>{task.category}</strong></div>
+          <div className="trow"><span>Last serviced</span><strong>{task.lastAt !== null ? fmtShort(task.lastAt, unit) : "Never"}</strong></div>
+          <div className="trow"><span>Next due</span><strong>{fmtShort(task.nextDue, unit)}</strong></div>
+          <div style={{ marginTop:8 }}>
+            <button className="btn btn-p" style={{ width:"100%" }} onClick={(e) => { e.stopPropagation(); openCompleteTask(task); }}><Ic icon="Check" size={14} style={{ marginRight:5 }} />Mark as Completed</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// MANAGE TAB
+// =============================================================================
+function ManageTab({ unit, unitCfg, serviceDefs, taskStatuses, onAdd, onEdit, onDelete }) {
+  const [cat, setCat] = useState("All");
+  const statusMap = Object.fromEntries(taskStatuses.map((t) => [t.id, t.status]));
+  const cats      = ["All", ...new Set(serviceDefs.map((d) => d.category))];
+  const grouped   = cats.filter((c) => c !== "All").reduce((acc, c) => {
+    const items = serviceDefs.filter((d) => d.category === c && (cat === "All" || cat === c));
+    if (items.length) acc[c] = items;
+    return acc;
+  }, {});
+
+  return (
+    <div className="sec">
+      <div className="sec-title">Manage Services</div>
+      <div className="minfo" style={{ margin:"0 0 12px", display:"flex", alignItems:"center", gap:6 }}>
+        <Ic icon={unit === "hours" ? "Timer" : "Navigation"} size={13} />Intervals are in <strong>{unitCfg.label}</strong> for this bike. Edit, add, or remove services — changes recalculate immediately.
+      </div>
+      <div className="pill-row">{cats.map((c) => <button key={c} className={`pill ${cat === c ? "on" : "off"}`} onClick={() => setCat(c)}>{c}</button>)}</div>
+      {serviceDefs.length === 0 && <div className="empty">No services defined.<br/>Tap <Ic icon="Plus" size={13} /> to add your first service.</div>}
+      {Object.entries(grouped).map(([category, defs]) => (
+        <div key={category}>
+          <div style={{ fontFamily:"var(--fm)", fontSize:10, color:"var(--txt3)", textTransform:"uppercase", letterSpacing:1.5, padding:"8px 0 4px" }}>{category}</div>
+          {defs.map((def) => {
+            const status = statusMap[def.id] ?? "ok";
+            const label  = def.dependsOnKey
+              ? `Every ${def.dependsOnCount}× parent`
+              : def.intervalNormal
+                ? `${fmtShort(def.intervalNormal, unit)} / ${fmtShort(def.intervalAggressive, unit)} aggr.`
+                : "–";
+            return (
+              <div key={def.id} className="svc-card">
+                <div style={{ minWidth:28, display:"flex", alignItems:"center", justifyContent:"center" }}><ServiceIcon icon={def.icon} size={20} /></div>
+                <div className="svc-card-info">
+                  <div className="svc-card-name">{def.isPreset && <span className="preset-dot" />}{def.name}</div>
+                  <div className="svc-card-meta">
+                    {label}
+                    <span className={`sbadge ${status}`} style={{ display:"inline-block", marginLeft:8, verticalAlign:"middle" }}>
+                      {status === "overdue" ? "OVERDUE" : status === "due-soon" ? "SOON" : "OK"}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:5, flexShrink:0 }}>
+                  <button className="icon-btn edit" onClick={() => onEdit(def)}><Ic icon="Pencil" size={13} /></button>
+                  <button className="icon-btn del"  onClick={() => onDelete(def)}><Ic icon="Trash2" size={13} /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// =============================================================================
+// HISTORY TAB
+// =============================================================================
+// Props:
+//   snapshots           — OdometerSnapshot[] for this bike (km/mi only)
+//   onDeleteSnapshot    — (snapId) => void
+//   canUpdateOdometer   — boolean, true for km/mi bikes
+//   onUpdateOdometer    — () => void, opens the odometer update modal
+//
+// Views:
+//   "service"   — service records (all bikes)
+//   "sessions"  — ride sessions (all bikes)
+//   "odometer"  — odometer snapshot history (km/mi bikes only)
+//                 hidden entirely for hours bikes
+// =============================================================================
+function HistoryTab({
+  unit, unitCfg,
+  sessions, initialReading,
+  records, defMap, totalSpent,
+  filter, setFilter,
+  view, setView,
+  cats,
+  onDeleteLog,
+  onViewSession,
+  snapshots,
+  onDeleteSnapshot,
+  canUpdateOdometer,
+  onUpdateOdometer,
+}) {
+  const logs = [...records]
+    .filter((r) => filter === "all" || defMap[r.defId]?.category?.toLowerCase() === filter)
+    .sort((a, b) => b.completedAt - a.completedAt);
+
+  // Build the sorted snapshot list — manual entries only shown here.
+  // The effective reading is computed from these in the service engine;
+  // here we just display the audit trail.
+  const sortedSnaps = [...(snapshots ?? [])].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
+  // The view tabs depend on unit — odometer tab only for km/mi
+  const viewTabs = [
+    ["service",  "Service Records"],
+    ["sessions", "Ride Sessions"],
+    ...(canUpdateOdometer ? [["odometer", "Odometer Log"]] : []),
+  ];
+
+  // If the current view is "odometer" but the bike was switched to hours,
+  // fall back gracefully (parent resets view on bike switch but guard anyway)
+  const activeView = view === "odometer" && !canUpdateOdometer ? "service" : view;
+
+  return (
+    <div className="sec">
+      <div className="sec-title" style={{ display:"flex", alignItems:"center", gap:7 }}>
+        History · <Ic icon={unit === "hours" ? "Timer" : "Navigation"} size={14} />{unitCfg.label}
+      </div>
+
+      {/* ── Stats row ── */}
+      <div className="srow2" style={{ marginBottom:12 }}>
+        <div className="sbox">
+          <div className="slabel">Spent</div>
+          <div className="sval" style={{ color:"var(--grn)", fontSize:20 }}>${totalSpent.toFixed(0)}</div>
+        </div>
+        <div className="sbox">
+          <div className="slabel">Services</div>
+          <div className="sval">{records.length}</div>
+        </div>
+        <div className="sbox">
+          <div className="slabel">Sessions</div>
+          <div className="sval">{sessions.length}</div>
+        </div>
+        <div className="sbox">
+          <div className="slabel">Total {unit === "hours" ? "Ridden" : "Traveled"}</div>
+          <div className="sval" style={{ fontSize:18 }}>
+            {fmtShort(sessions.reduce((s, r) => s + r.durationReading, 0), unit)}
+          </div>
+        </div>
+      </div>
+
+      {/* ── View tabs ── */}
+      <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+        {viewTabs.map(([v, label]) => (
+          <button
+            key={v}
+            className={`pill ${activeView === v ? "on" : "off"}`}
+            style={{ flex:1, textAlign:"center" }}
+            onClick={() => setView(v)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── SERVICE RECORDS ── */}
+      {activeView === "service" && (
+        <>
+          <div className="pill-row">
+            {cats.map((c) => (
+              <button
+                key={c}
+                className={`pill ${filter === c ? "on" : "off"}`}
+                style={{ textTransform:"capitalize" }}
+                onClick={() => setFilter(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          {logs.length === 0 && <div className="empty">No service records found</div>}
+          {logs.map((log) => {
+            const def = defMap[log.defId];
+            return (
+              <div key={log.id} className="hitem">
+                <div className="hdot"><ServiceIcon icon={def?.icon || "🔧"} size={16} /></div>
+                <div className="hcontent">
+                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                    <div className="htitle">{def?.name || "Unknown Service"}</div>
+                    <button className="log-del" onClick={() => onDeleteLog(log)}><Ic icon="Trash2" size={13} /></button>
+                  </div>
+                  <div className="hmeta">
+                    {log.date} · at <strong style={{ color:"var(--txt2)" }}>{fmtShort(log.completedAt, unit)}</strong>
+                  </div>
+                  {log.parts && <div style={{ marginTop:4 }}><span className="tag">{log.parts}</span></div>}
+                  {log.notes && <div className="hnotes">{log.notes}</div>}
+                  {log.cost > 0 && <div className="hcost">${log.cost.toFixed(2)}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* ── RIDE SESSIONS ── */}
+      {activeView === "sessions" && (
+        <>
+          {[...sessions].reverse().map((s) => {
+            const absStart = roundForUnit(initialReading + s.startReading, unit);
+            const absEnd   = roundForUnit(initialReading + sessionEnd(s), unit);
+            return (
+              <div key={s.id} className="scard" onClick={() => onViewSession(s)}>
+                <div className="scard-inner">
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div className="scard-title">
+                      {s.title || DEFAULT_TITLE}
+                      {s.notes?.trim() && <span style={{ marginLeft:6 }}><Ic icon="NotebookPen" size={11} /></span>}
+                    </div>
+                    <div className="scard-meta">
+                      {s.date} · {fmtShort(absStart, unit)} → {fmtShort(absEnd, unit)}
+                    </div>
+                  </div>
+                  <div className="scard-dur">+{fmtShort(s.durationReading, unit)}</div>
+                </div>
+              </div>
+            );
+          })}
+          {sessions.length === 0 && <div className="empty">No sessions logged yet</div>}
+        </>
+      )}
+
+      {/* ── ODOMETER LOG (km/mi bikes only) ── */}
+      {activeView === "odometer" && canUpdateOdometer && (
+        <>
+          {/* Quick-update button at top of the log for easy access */}
+          <div
+            className="odo-update-btn"
+            onClick={onUpdateOdometer}
+            style={{ marginBottom:12 }}
+          >
+            <span className="odo-update-btn-icon"><Ic icon="Navigation" size={16} /></span>
+            <span className="odo-update-btn-text">Update Odometer</span>
+            <span className="odo-update-btn-reading">Tap to enter new reading</span>
+          </div>
+
+          {sortedSnaps.length === 0 && (
+            <div className="empty">
+              No manual odometer updates yet.<br/>
+              Tap the button above to add your current reading.
+            </div>
+          )}
+
+          {sortedSnaps.map((snap) => (
+            <div key={snap.id} className="snap-item">
+              <span className={`snap-source ${snap.source}`}>
+                {snap.source === "manual" ? "manual" : "ride"}
+              </span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div className="snap-odo">{fmtShort(snap.odometer, unit)}</div>
+                <div className="snap-date">
+                  {snap.date}
+                  {snap.createdAt && (
+                    <span style={{ marginLeft:6, color:"var(--txt3)" }}>
+                      · {timeAgo(snap.createdAt)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Only manual snapshots can be deleted — ride-derived data is
+                  managed through the session list to keep the chain consistent */}
+              {snap.source === "manual" && (
+                <button
+                  className="snap-del"
+                  title="Remove this snapshot"
+                  onClick={() => onDeleteSnapshot(snap.id)}
+                >
+                  <Ic icon="Trash2" size={13} />
+                </button>
+              )}
+            </div>
+          ))}
+
+          {sortedSnaps.length > 0 && (
+            <div style={{ fontFamily:"var(--fm)", fontSize:10, color:"var(--txt3)", textAlign:"center", marginTop:10, lineHeight:1.6 }}>
+              {sortedSnaps.length} odometer entr{sortedSnaps.length === 1 ? "y" : "ies"} · service calculations always use the highest recorded value
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// PRE-RIDE TAB — Customizable Category-Based Checklist
+// =============================================================================
+//
+// Two views controlled by local state:
+//   "check"  — fast pre-ride flow with progress ring and category sections
+//   "manage" — settings screen with category/item CRUD and reordering
+//
+// Props mirror the checklist handlers from App. All state mutations happen
+// in App; this component is purely presentational.
+// =============================================================================
+
+function ProgressRing({ checked, total, size = 56 }) {
+  const pct    = total === 0 ? 0 : Math.round((checked / total) * 100);
+  const radius = (size - 6) / 2;
+  const circ   = 2 * Math.PI * radius;
+  const fill   = total === 0 ? 0 : (checked / total) * circ;
+  const all    = checked === total && total > 0;
+  return (
+    <svg className="cl-ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--bd2)" strokeWidth="5" />
+      <circle
+        cx={size/2} cy={size/2} r={radius} fill="none"
+        stroke={all ? "var(--grn)" : "var(--red2)"}
+        strokeWidth="5"
+        strokeDasharray={`${fill} ${circ}`}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`}
+        style={{ transition:"stroke-dasharray .3s ease" }}
+      />
+      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle"
+        fill={all ? "#4ade80" : "var(--txt2)"}
+        fontFamily="var(--fd)" fontSize={size < 50 ? "10" : "13"} fontWeight="700">
+        {pct}%
+      </text>
+    </svg>
+  );
+}
+
+function PreRideTab({
+  categories, items, checks, checkedCount, enabledCount, activeBike,
+  onToggle, onReset,
+  onAddCategory, onEditCategory, onDeleteCategory, onReorderCategory,
+  onAddItem, onEditItem, onDeleteItem, onToggleEnabled, onReorderItem,
+}) {
+  const [view, setView]           = useState("check");   // "check" | "manage"
+  const [expandedCats, setExpandedCats] = useState(() => {
+    // All categories expanded by default on first render
+    return Object.fromEntries(categories.map((c) => [c.id, true]));
+  });
+
+  // When a new category is added (categories array grows), expand it
+  const prevCatCount = expandedCats ? Object.keys(expandedCats).length : 0;
+
+  const toggleCat = (catId) => setExpandedCats((e) => ({ ...e, [catId]: !e[catId] }));
+
+  const all = enabledCount > 0 && checkedCount === enabledCount;
+
+  // ── CHECK VIEW ──────────────────────────────────────────────────────────────
+  if (view === "check") {
+    return (
+      <div className="sec">
+        {/* Progress card */}
+        <div className="cl-progress-card" style={{ borderTopColor: all ? "var(--grn)" : "var(--red)" }}>
+          <div className="cl-progress-text">
+            <div className="cl-progress-title" style={{ color: all ? "#4ade80" : "var(--txt)", display:"flex", alignItems:"center", gap:7 }}>
+              {all && <Ic icon="Check" size={18} />}{all ? "Ready to Ride!" : "Pre-Ride Check"}
+            </div>
+            <div className="cl-progress-sub">
+              {enabledCount === 0
+                ? "No items — tap Manage to set up"
+                : `${checkedCount} / ${enabledCount} items · ${activeBike?.name ?? ""}`}
+            </div>
+          </div>
+          <ProgressRing checked={checkedCount} total={enabledCount} size={56} />
+        </div>
+
+        {/* No categories empty state */}
+        {categories.length === 0 && (
+          <div className="empty">
+            No checklist categories yet.<br/>
+            <button className="btn btn-grn" style={{ marginTop:12 }} onClick={() => setView("manage")}>Set Up Checklist</button>
+          </div>
+        )}
+
+        {/* Category sections */}
+        {categories.map((cat) => {
+          const catItems = items
+            .filter((i) => i.categoryId === cat.id && i.enabled)
+            .sort((a, b) => a.order - b.order);
+          if (catItems.length === 0) return null;
+          const catChecked = catItems.filter((i) => checks[i.id]).length;
+          const catAll     = catChecked === catItems.length;
+          const isOpen     = expandedCats[cat.id] !== false; // default open
+          return (
+            <div key={cat.id} className="cl-cat-section">
+              <div className="cl-cat-section-header" onClick={() => toggleCat(cat.id)}>
+                <span className="cl-cat-section-icon"><CatIcon icon={cat.icon} size={16} /></span>
+                <span className="cl-cat-section-name" style={{ color: catAll ? "#4ade80" : "var(--txt)" }}>
+                  {cat.name} {catAll && <Ic icon="Check" size={13} />}
+                </span>
+                <span className="cl-cat-section-progress">{catChecked}/{catItems.length}</span>
+                <span className={`cl-cat-section-caret${isOpen ? " open" : ""}`}><Ic icon="ChevronDown" size={13} /></span>
+              </div>
+              {isOpen && (
+                <div className="cl-cat-items">
+                  {catItems.map((item) => {
+                    const checked = !!checks[item.id];
+                    return (
+                      <div
+                        key={item.id}
+                        className={`clitem${checked ? " checked" : ""}`}
+                        style={{ marginBottom:4 }}
+                        onClick={() => onToggle(item.id)}
+                      >
+                        <div className="cbox">
+                          {checked && <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                            <path d="M1 5L4.5 8.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>}
+                        </div>
+                        <div className="clabel">{item.name}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Footer actions */}
+        <div style={{ display:"flex", gap:8, marginTop:12 }}>
+          {checkedCount > 0 && (
+            <button className="btn btn-g" style={{ flex:1 }} onClick={onReset}><Ic icon="RotateCcw" size={13} style={{ marginRight:5 }} />Reset</button>
+          )}
+          <button className="btn btn-s" style={{ flex:1 }} onClick={() => setView("manage")}><Ic icon="Settings" size={13} style={{ marginRight:5 }} />Manage</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── MANAGE VIEW ─────────────────────────────────────────────────────────────
+  return (
+    <div className="sec">
+      <div className="cl-manage-header">
+        <button className="cl-back-btn" onClick={() => setView("check")}><Ic icon="ArrowLeft" size={14} style={{ marginRight:5 }} />Back</button>
+        <div style={{ fontFamily:"var(--fd)", fontSize:18, fontWeight:700, flex:1 }}>Checklist Settings</div>
+      </div>
+      <div style={{ fontFamily:"var(--fm)", fontSize:10, color:"var(--txt3)", marginBottom:12 }}>
+        {activeBike?.name?.toUpperCase()} · {categories.length} CATEGOR{categories.length === 1 ? "Y" : "IES"} · {items.length} ITEMS
+      </div>
+
+      {categories.length === 0 && (
+        <div className="empty" style={{ padding:"20px 0" }}>No categories yet. Add one below.</div>
+      )}
+
+      {categories.map((cat, catIdx) => {
+        const catItems = items
+          .filter((i) => i.categoryId === cat.id)
+          .sort((a, b) => a.order - b.order);
+        const isOpen   = expandedCats[cat.id] !== false;
+        return (
+          <div key={cat.id} className="cl-cat-row">
+            {/* Category header */}
+            <div className="cl-cat-header" onClick={() => toggleCat(cat.id)}>
+              <span className="cl-cat-icon"><CatIcon icon={cat.icon} size={18} /></span>
+              <span className="cl-cat-name">{cat.name}</span>
+              <span className="cl-cat-count">{catItems.length} item{catItems.length !== 1 ? "s" : ""}</span>
+              {/* Reorder buttons */}
+              <div className="cl-reorder-btns" onClick={(e) => e.stopPropagation()}>
+                <button className="cl-reorder-btn" disabled={catIdx === 0} onClick={() => onReorderCategory(cat.id, -1)}><Ic icon="ChevronUp" size={11} /></button>
+                <button className="cl-reorder-btn" disabled={catIdx === categories.length - 1} onClick={() => onReorderCategory(cat.id, 1)}><Ic icon="ChevronDown" size={11} /></button>
+              </div>
+              {/* Edit / delete */}
+              <div style={{ display:"flex", gap:4 }} onClick={(e) => e.stopPropagation()}>
+                <button className="icon-btn edit" onClick={() => onEditCategory(cat)}><Ic icon="Pencil" size={13} /></button>
+                <button className="icon-btn del"  onClick={() => onDeleteCategory(cat)}><Ic icon="Trash2" size={13} /></button>
+              </div>
+              <span className={`cl-cat-caret${isOpen ? " open" : ""}`}><Ic icon="ChevronDown" size={13} /></span>
+            </div>
+
+            {/* Expanded item list */}
+            {isOpen && (
+              <div className="cl-cat-body">
+                {catItems.length === 0 && (
+                  <div style={{ fontFamily:"var(--fm)", fontSize:11, color:"var(--txt3)", padding:"6px 4px 8px", textAlign:"center" }}>
+                    No items yet.
+                  </div>
+                )}
+                {catItems.map((item, itemIdx) => (
+                  <div key={item.id} className="cl-item-row">
+                    {/* Enable/disable toggle */}
+                    <div
+                      className={`cl-toggle ${item.enabled ? "on" : "off"}`}
+                      onClick={() => onToggleEnabled(item.id)}
+                      title={item.enabled ? "Enabled — tap to disable" : "Disabled — tap to enable"}
+                    >
+                      <div className="cl-toggle-dot" />
+                    </div>
+                    <span className={`cl-item-name${!item.enabled ? " disabled" : ""}`}>{item.name}</span>
+                    {/* Item reorder */}
+                    <div className="cl-reorder-btns">
+                      <button className="cl-reorder-btn" disabled={itemIdx === 0} onClick={() => onReorderItem(item.id, cat.id, -1)}><Ic icon="ChevronUp" size={11} /></button>
+                      <button className="cl-reorder-btn" disabled={itemIdx === catItems.length - 1} onClick={() => onReorderItem(item.id, cat.id, 1)}><Ic icon="ChevronDown" size={11} /></button>
+                    </div>
+                    <button className="icon-btn edit" onClick={() => onEditItem(item)}><Ic icon="Pencil" size={13} /></button>
+                    <button className="icon-btn del"  onClick={() => onDeleteItem(item.id)}><Ic icon="Trash2" size={13} /></button>
+                  </div>
+                ))}
+                {/* Add item in this category */}
+                <button className="cl-manage-item-add" onClick={() => onAddItem(cat.id)}>
+                  <Ic icon="Plus" size={13} />Add item to {cat.name}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Add category */}
+      <div className="cl-add-cat-btn" onClick={onAddCategory}>
+        <Ic icon="Plus" size={15} />Add Category
+      </div>
+    </div>
+  );
+}
